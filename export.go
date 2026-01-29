@@ -18,6 +18,19 @@ func export(methodName, src, tar string) error {
 		return errors.New("method name cannot be empty")
 	}
 
+	// Parse methodName and suffix
+	var baseMethodName, suffix string
+	parts := strings.Split(methodName, ",")
+	if len(parts) == 1 {
+		baseMethodName = parts[0]
+		suffix = ""
+	} else if len(parts) == 2 {
+		baseMethodName = parts[0]
+		suffix = parts[1]
+	} else {
+		return errors.New("invalid method name format, expected 'name' or 'name,suffix'")
+	}
+
 	// Check if src is a zip file
 	isZip := strings.HasSuffix(strings.ToLower(src), ".zip")
 
@@ -59,25 +72,45 @@ func export(methodName, src, tar string) error {
 	}
 
 	// 3. Export root
-	if err := exportRoot(methodName, yuhaoPath, tar); err != nil {
+	if err := exportRoot(baseMethodName, suffix, yuhaoPath, tar); err != nil {
 		return fmt.Errorf("failed to export root: %w", err)
 	}
 
 	// 4. Export quick words
-	if err := exportQuickWords(methodName, yuhaoPath, tar); err != nil {
+	if err := exportQuickWords(baseMethodName, suffix, yuhaoPath, tar); err != nil {
 		return fmt.Errorf("failed to export quick words: %w", err)
 	}
 
-	// 5. Export pop words
-	if err := exportPopWords(methodName, yuhaoPath, tar); err != nil {
-		return fmt.Errorf("failed to export pop words: %w", err)
+	// 5. Export pop words - ignore if file doesn't exist
+	if err := exportPopWords(baseMethodName, suffix, yuhaoPath, tar); err != nil {
+		// Check if error is due to file not existing
+		if !strings.Contains(err.Error(), "no such file or directory") && !strings.Contains(err.Error(), "cannot find the file") {
+			return fmt.Errorf("failed to export pop words: %w", err)
+		}
+		// If it's a "file not found" error, just log and continue
+		fmt.Printf("Notice: Pop words file not found, skipping pop words export\n")
 	}
 
 	return nil
 }
 
-func exportRoot(methodName, yuhaoPath, tar string) error {
-	dictFileName := methodName + ".roots.dict.yaml"
+func exportRoot(methodName, suffix, yuhaoPath, tar string) error {
+	// Try to find file with suffix first
+	var dictFileName string
+	if suffix != "" {
+		dictFileNameWithSuffix := methodName + "_" + suffix + ".roots.dict.yaml"
+		dictFilePathWithSuffix := filepath.Join(yuhaoPath, dictFileNameWithSuffix)
+		if _, err := os.Stat(dictFilePathWithSuffix); err == nil {
+			// File with suffix exists, use it
+			dictFileName = dictFileNameWithSuffix
+		} else {
+			// File with suffix doesn't exist, fall back to original
+			dictFileName = methodName + ".roots.dict.yaml"
+		}
+	} else {
+		dictFileName = methodName + ".roots.dict.yaml"
+	}
+
 	dictFilePath := filepath.Join(yuhaoPath, dictFileName)
 
 	file, err := os.Open(dictFilePath)
@@ -108,7 +141,7 @@ func exportRoot(methodName, yuhaoPath, tar string) error {
 				words := fields[3]
 				// Process the last field to extract key by removing '/lm' prefix
 				lastField := fields[len(fields)-1]
-				key := strings.TrimPrefix(lastField, "/lm")
+				key := lastField[3:]
 				keyCode := key + code
 
 				// Add words corresponding to each keyCode
@@ -152,8 +185,23 @@ func exportRoot(methodName, yuhaoPath, tar string) error {
 	return nil
 }
 
-func exportQuickWords(methodName, yuhaoPath, tar string) error {
-	dictFileName := methodName + ".quick.dict.yaml"
+func exportQuickWords(methodName, suffix, yuhaoPath, tar string) error {
+	// Try to find file with suffix first
+	var dictFileName string
+	if suffix != "" {
+		dictFileNameWithSuffix := methodName + "_" + suffix + ".quick.dict.yaml"
+		dictFilePathWithSuffix := filepath.Join(yuhaoPath, dictFileNameWithSuffix)
+		if _, err := os.Stat(dictFilePathWithSuffix); err == nil {
+			// File with suffix exists, use it
+			dictFileName = dictFileNameWithSuffix
+		} else {
+			// File with suffix doesn't exist, fall back to original
+			dictFileName = methodName + ".quick.dict.yaml"
+		}
+	} else {
+		dictFileName = methodName + ".quick.dict.yaml"
+	}
+
 	dictFilePath := filepath.Join(yuhaoPath, dictFileName)
 
 	file, err := os.Open(dictFilePath)
@@ -248,8 +296,35 @@ func exportQuickWords(methodName, yuhaoPath, tar string) error {
 	return nil
 }
 
-func exportPopWords(methodName, yuhaoPath, tar string) error {
-	dictFileName := methodName + ".pop.dict.yaml"
+func exportPopWords(methodName, suffix, yuhaoPath, tar string) error {
+	// 1. Check if src folder and 'yuhao' folder under src exist
+	if _, err := os.Stat(yuhaoPath); os.IsNotExist(err) {
+		return fmt.Errorf("yuhao directory '%s' does not exist", yuhaoPath)
+	}
+
+	// 2. Check if tar folder exists, create it recursively if not
+	if _, err := os.Stat(tar); os.IsNotExist(err) {
+		if err := os.MkdirAll(tar, 0755); err != nil {
+			return fmt.Errorf("failed to create target directory '%s': %w", tar, err)
+		}
+	}
+
+	// Try to find file with suffix first
+	var dictFileName string
+	if suffix != "" {
+		dictFileNameWithSuffix := methodName + "_" + suffix + ".pop.dict.yaml"
+		dictFilePathWithSuffix := filepath.Join(yuhaoPath, dictFileNameWithSuffix)
+		if _, err := os.Stat(dictFilePathWithSuffix); err == nil {
+			// File with suffix exists, use it
+			dictFileName = dictFileNameWithSuffix
+		} else {
+			// File with suffix doesn't exist, fall back to original
+			dictFileName = methodName + ".pop.dict.yaml"
+		}
+	} else {
+		dictFileName = methodName + ".pop.dict.yaml"
+	}
+
 	dictFilePath := filepath.Join(yuhaoPath, dictFileName)
 
 	file, err := os.Open(dictFilePath)
