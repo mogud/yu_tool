@@ -249,19 +249,6 @@ func exportQuickWords(methodName, yuhaoPath, tar string) error {
 }
 
 func exportPopWords(methodName, yuhaoPath, tar string) error {
-	// 1. Check if src folder and 'yuhao' folder under src exist
-	if _, err := os.Stat(yuhaoPath); os.IsNotExist(err) {
-		return fmt.Errorf("yuhao directory '%s' does not exist", yuhaoPath)
-	}
-
-	// 2. Check if tar folder exists, create it recursively if not
-	if _, err := os.Stat(tar); os.IsNotExist(err) {
-		if err := os.MkdirAll(tar, 0755); err != nil {
-			return fmt.Errorf("failed to create target directory '%s': %w", tar, err)
-		}
-	}
-
-	// 3. Read the pop dictionary file
 	dictFileName := methodName + ".pop.dict.yaml"
 	dictFilePath := filepath.Join(yuhaoPath, dictFileName)
 
