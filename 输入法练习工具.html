@@ -9,6 +9,21 @@
 
         const config = {}
 
+        let speedTimer = null
+        let wordCount = 0
+        let startTime = 0
+        let curInputMax = 0
+        let curInputIndex = 0
+        let curTab = 0
+        let totalWords = []
+        let totalIndex = 0
+        let inputTimer = null
+
+        let rawArea = null
+        let userInput = null
+        let speedLabel = null
+        let progressLabel = null
+
         const onConfigSelected = async (e) => {
             const file = e.target.files[0]
             if (!file) return
@@ -26,7 +41,7 @@
                 </header>
                 <nav class="nav-tabs"></nav>
                 <main></main>`
-                // 初始化变量
+                // 重置变量
                 speedTimer = null; wordCount = 0; startTime = 0
                 curInputMax = 0; curInputIndex = 0; curTab = 0
                 totalWords = []; totalIndex = 0
@@ -279,7 +294,6 @@
             return result
         }
 
-        let inputTimer = null
         const handleInput = () => {
             if (curInputIndex >= curInputMax) return
             if (inputTimer) clearTimeout(inputTimer)
@@ -328,7 +342,7 @@
         }
 
         const clearDisplayArea = () => {
-            while (rawArea.hasChildNodes()) { rawArea.removeChild(rawArea.lastChild) }
+            rawArea.innerHTML = ''
         }
 
     </script>
