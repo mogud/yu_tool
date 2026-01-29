@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -52,6 +53,9 @@ func export(methodName, src, tar string) error {
 	}
 	defer outputFile.Close()
 
+	// Map to store keyCodes and their corresponding words
+	wordToKeyCodeMap := make(map[string][]string) // map: keyCode -> list of words
+
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -64,14 +68,12 @@ func export(methodName, src, tar string) error {
 				// Process the last field to extract key by removing '/lm' prefix
 				lastField := fields[len(fields)-1]
 				key := strings.TrimPrefix(lastField, "/lm")
+				keyCode := key + code
 
-				// Split words into runes and process each word
+				// Add words corresponding to each keyCode
 				for _, word := range []rune(words) {
-					resultLine := string(word) + "\t" + key + code
-					_, err := outputFile.WriteString(resultLine + "\n")
-					if err != nil {
-						return fmt.Errorf("failed to write to output file: %w", err)
-					}
+					wordStr := string(word)
+					wordToKeyCodeMap[keyCode] = append(wordToKeyCodeMap[keyCode], wordStr)
 				}
 			}
 		}
@@ -79,6 +81,25 @@ func export(methodName, src, tar string) error {
 
 	if err := scanner.Err(); err != nil {
 		return fmt.Errorf("error reading dictionary file: %w", err)
+	}
+
+	// Get list of unique keyCodes and sort them
+	var sortedKeyCodes []string
+	for keyCode := range wordToKeyCodeMap {
+		sortedKeyCodes = append(sortedKeyCodes, keyCode)
+	}
+	sort.Strings(sortedKeyCodes)
+
+	// Write sorted entries to output file
+	for _, keyCode := range sortedKeyCodes {
+		words := wordToKeyCodeMap[keyCode]
+		for _, word := range words {
+			entry := word + "\t" + keyCode
+			_, err := outputFile.WriteString(entry + "\n")
+			if err != nil {
+				return fmt.Errorf("failed to write to output file: %w", err)
+			}
+		}
 	}
 
 	return nil
