@@ -43,6 +43,11 @@ func export(methodName, src, tar string) error {
 		return fmt.Errorf("failed to export quick words: %w", err)
 	}
 
+	// 5. Export pop words
+	if err := exportPopWords(methodName, yuhaoPath, tar); err != nil {
+		return fmt.Errorf("failed to export pop words: %w", err)
+	}
+
 	return nil
 }
 
@@ -122,12 +127,6 @@ func exportRoot(methodName, yuhaoPath, tar string) error {
 	return nil
 }
 
-// exportQuickWords 实现了如下功能：
-// 1. 按 utf-8 读取 src/yuhao/methodName.quick.dict.yaml 文件，每行 split 后只留下列数为 2 且第二列全部是英文字母的行
-// 2. split[0] 的内容转成 rune slice，如果大于 1 代表是个词，否则是字；split[1] 为字词的编码 code
-// 3. 字词分开存储，并且各自按 code 升序排序，再将 code 和 字词的映射分别存储到 tar/quickWords.txt 和 tar/quickChars.txt 中
-// 4. 注意 code 与字词之间用一个 tab 分割，记录之间用换行分割
-// 5. 如果参数不满足需求，适当调整
 func exportQuickWords(methodName, yuhaoPath, tar string) error {
 	dictFileName := methodName + ".quick.dict.yaml"
 	dictFilePath := filepath.Join(yuhaoPath, dictFileName)
@@ -218,6 +217,115 @@ func exportQuickWords(methodName, yuhaoPath, tar string) error {
 		_, err := charsFile.WriteString(item[1] + "\t" + item[0] + "\n")
 		if err != nil {
 			return fmt.Errorf("failed to write to chars file: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func exportPopWords(methodName, yuhaoPath, tar string) error {
+	// 1. Check if src folder and 'yuhao' folder under src exist
+	if _, err := os.Stat(yuhaoPath); os.IsNotExist(err) {
+		return fmt.Errorf("yuhao directory '%s' does not exist", yuhaoPath)
+	}
+
+	// 2. Check if tar folder exists, create it recursively if not
+	if _, err := os.Stat(tar); os.IsNotExist(err) {
+		if err := os.MkdirAll(tar, 0755); err != nil {
+			return fmt.Errorf("failed to create target directory '%s': %w", tar, err)
+		}
+	}
+
+	// 3. Read the pop dictionary file
+	dictFileName := methodName + ".pop.dict.yaml"
+	dictFilePath := filepath.Join(yuhaoPath, dictFileName)
+
+	file, err := os.Open(dictFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to open dictionary file '%s': %w", dictFilePath, err)
+	}
+	defer file.Close()
+
+	// Create output files
+	popWordsOutputPath := filepath.Join(tar, "pop_words.txt")
+	popCharsOutputPath := filepath.Join(tar, "pop_chars.txt")
+
+	popWordsFile, err := os.Create(popWordsOutputPath)
+	if err != nil {
+		return fmt.Errorf("failed to create pop words output file '%s': %w", popWordsOutputPath, err)
+	}
+	defer popWordsFile.Close()
+
+	popCharsFile, err := os.Create(popCharsOutputPath)
+	if err != nil {
+		return fmt.Errorf("failed to create pop chars output file '%s': %w", popCharsOutputPath, err)
+	}
+	defer popCharsFile.Close()
+
+	// Slices to store words and chars with their codes
+	var wordsList [][2]string // [][word, code]
+	var charsList [][2]string // [][char, code]
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		fields := strings.Fields(line)
+
+		// Only process lines with exactly 2 fields
+		if len(fields) == 2 {
+			wordOrChar := fields[0]
+			code := fields[1]
+
+			// Check if code contains only English letters and wordOrChar is not all ASCII
+			if isEnglishLettersOnly(code) && !isAllASCII(wordOrChar) {
+				runes := []rune(wordOrChar)
+				if len(runes) > 1 {
+					// It's a word (more than one rune)
+					wordsList = append(wordsList, [2]string{wordOrChar, code})
+				} else {
+					// It's a character (single rune)
+					charsList = append(charsList, [2]string{wordOrChar, code})
+				}
+			}
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("error reading dictionary file: %w", err)
+	}
+
+	// Sort both lists by code: shorter codes first, then alphabetically (stable sort)
+	sort.SliceStable(wordsList, func(i, j int) bool {
+		codeI := wordsList[i][1]
+		codeJ := wordsList[j][1]
+		if len(codeI) != len(codeJ) {
+			return len(codeI) < len(codeJ) // Shorter codes first
+		}
+		return codeI < codeJ // Then alphabetical
+	})
+
+	sort.SliceStable(charsList, func(i, j int) bool {
+		codeI := charsList[i][1]
+		codeJ := charsList[j][1]
+		if len(codeI) != len(codeJ) {
+			return len(codeI) < len(codeJ) // Shorter codes first
+		}
+		return codeI < codeJ // Then alphabetical
+	})
+
+	// Write words to file (code first, then word)
+	for _, item := range wordsList {
+		_, err := popWordsFile.WriteString(item[1] + "\t" + item[0] + "\n")
+		if err != nil {
+			return fmt.Errorf("failed to write to pop words file: %w", err)
+		}
+	}
+
+	// Write chars to file (code first, then char)
+	for _, item := range charsList {
+		_, err := popCharsFile.WriteString(item[1] + "\t" + item[0] + "\n")
+		if err != nil {
+			return fmt.Errorf("failed to write to pop chars file: %w", err)
 		}
 	}
 
