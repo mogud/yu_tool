@@ -1,6 +1,10 @@
 {
   name: "卿云字根练习",
   version: "1.0.0",
+  font: {
+    name: "Yuniversus",
+    file: "Yuniversus.woff",
+  },
   rootMap: [
     {
       "ae": ["二", "冫"],
