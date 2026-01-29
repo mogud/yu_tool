@@ -28,11 +28,6 @@ go.work.sum
 .env
 
 # Editor/IDE
-# .idea/
-# .vscode/
-/.idea/.gitignore
-/.idea/go.imports.xml
-/.idea/modules.xml
-/.idea/vcs.xml
-/.idea/yu_tool.iml
-/gen/root.txt
+.idea/
+.vscode/
+/gen
