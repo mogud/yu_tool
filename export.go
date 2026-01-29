@@ -411,17 +411,22 @@ func extractZipToDir(zipPath, destDir string) error {
 		if err != nil {
 			return err
 		}
-		defer fileReader.Close()
 
 		targetFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
 		if err != nil {
+			fileReader.Close() // Close fileReader if targetFile opening fails
 			return err
 		}
-		defer targetFile.Close()
 
 		if _, err := io.Copy(targetFile, fileReader); err != nil {
+			fileReader.Close() // Close fileReader if copy fails
+			targetFile.Close() // Close targetFile if copy fails
 			return err
 		}
+
+		// Close both files after successful copy
+		fileReader.Close()
+		targetFile.Close()
 	}
 	return nil
 }
