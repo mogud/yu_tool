@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-func export(methodName, src, tar string) error {
+func export(methodName, src, tar string, unique bool) error {
 	// 0. Check if methodName is empty
 	if methodName == "" {
 		return errors.New("method name cannot be empty")
@@ -77,18 +77,18 @@ func export(methodName, src, tar string) error {
 	}
 
 	// 4. Export quick words
-	if err := exportQuickWords(baseMethodName, suffix, yuhaoPath, tar); err != nil {
+	if err := exportQuickWords(baseMethodName, suffix, yuhaoPath, tar, unique); err != nil {
 		return fmt.Errorf("failed to export quick words: %w", err)
 	}
 
 	// 5. Export pop words - ignore if file doesn't exist
-	if err := exportPopWords(baseMethodName, suffix, yuhaoPath, tar); err != nil {
+	if err := exportPopWords(baseMethodName, suffix, yuhaoPath, tar, unique); err != nil {
 		// Check if error is due to file not existing
 		if !strings.Contains(err.Error(), "no such file or directory") && !strings.Contains(err.Error(), "cannot find the file") {
 			return fmt.Errorf("failed to export pop words: %w", err)
 		}
 		// If it's a "file not found" error, just log and continue
-		fmt.Printf("Notice: Pop words file not found, skipping pop words export\n")
+		fmt.Printf("Warning: Pop words file not found, skipping pop words export\n")
 	}
 
 	return nil
@@ -185,7 +185,7 @@ func exportRoot(methodName, suffix, yuhaoPath, tar string) error {
 	return nil
 }
 
-func exportQuickWords(methodName, suffix, yuhaoPath, tar string) error {
+func exportQuickWords(methodName, suffix, yuhaoPath, tar string, unique bool) error {
 	// Try to find file with suffix first
 	var dictFileName string
 	if suffix != "" {
@@ -278,7 +278,14 @@ func exportQuickWords(methodName, suffix, yuhaoPath, tar string) error {
 	})
 
 	// Write words to file
+	seenCodesWords := make(map[string]bool)
 	for _, item := range wordsList {
+		if unique {
+			if seenCodesWords[item[1]] {
+				continue // Skip if code already written
+			}
+			seenCodesWords[item[1]] = true
+		}
 		_, err := wordsFile.WriteString(item[1] + "\t" + item[0] + "\n")
 		if err != nil {
 			return fmt.Errorf("failed to write to words file: %w", err)
@@ -286,7 +293,14 @@ func exportQuickWords(methodName, suffix, yuhaoPath, tar string) error {
 	}
 
 	// Write chars to file
+	seenCodesChars := make(map[string]bool)
 	for _, item := range charsList {
+		if unique {
+			if seenCodesChars[item[1]] {
+				continue // Skip if code already written
+			}
+			seenCodesChars[item[1]] = true
+		}
 		_, err := charsFile.WriteString(item[1] + "\t" + item[0] + "\n")
 		if err != nil {
 			return fmt.Errorf("failed to write to chars file: %w", err)
@@ -296,7 +310,7 @@ func exportQuickWords(methodName, suffix, yuhaoPath, tar string) error {
 	return nil
 }
 
-func exportPopWords(methodName, suffix, yuhaoPath, tar string) error {
+func exportPopWords(methodName, suffix, yuhaoPath, tar string, unique bool) error {
 	// 1. Check if src folder and 'yuhao' folder under src exist
 	if _, err := os.Stat(yuhaoPath); os.IsNotExist(err) {
 		return fmt.Errorf("yuhao directory '%s' does not exist", yuhaoPath)
@@ -401,7 +415,14 @@ func exportPopWords(methodName, suffix, yuhaoPath, tar string) error {
 	})
 
 	// Write words to file (code first, then word)
+	seenCodesWords := make(map[string]bool)
 	for _, item := range wordsList {
+		if unique {
+			if seenCodesWords[item[1]] {
+				continue // Skip if code already written
+			}
+			seenCodesWords[item[1]] = true
+		}
 		_, err := popWordsFile.WriteString(item[1] + "\t" + item[0] + "\n")
 		if err != nil {
 			return fmt.Errorf("failed to write to pop words file: %w", err)
@@ -409,7 +430,14 @@ func exportPopWords(methodName, suffix, yuhaoPath, tar string) error {
 	}
 
 	// Write chars to file (code first, then char)
+	seenCodesChars := make(map[string]bool)
 	for _, item := range charsList {
+		if unique {
+			if seenCodesChars[item[1]] {
+				continue // Skip if code already written
+			}
+			seenCodesChars[item[1]] = true
+		}
 		_, err := popCharsFile.WriteString(item[1] + "\t" + item[0] + "\n")
 		if err != nil {
 			return fmt.Errorf("failed to write to pop chars file: %w", err)

@@ -18,18 +18,20 @@ func main() {
 
 	var sourceDir string
 	var targetDir string
+	var unique bool
 
 	var exportCmd = &cobra.Command{
 		Use:   "export [method name]",
 		Short: "导出宇浩指定输入法的字根、简码",
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			cobra.CheckErr(export(args[0], sourceDir, targetDir))
+			cobra.CheckErr(export(args[0], sourceDir, targetDir, unique))
 		},
 	}
 
-	exportCmd.Flags().StringVarP(&sourceDir, "source", "s", ".", "")
-	exportCmd.Flags().StringVarP(&targetDir, "target", "t", "./export", "")
+	exportCmd.Flags().StringVarP(&sourceDir, "source", "s", ".", "源路径，可以是宇浩发布的 zip 文件，如果已经解压，设置为解压后的 schema 目录")
+	exportCmd.Flags().StringVarP(&targetDir, "target", "t", "./export", "导出路径")
+	exportCmd.Flags().BoolVarP(&unique, "unique", "u", false, "当设置时，quick 和 pop 的输出中，一个编码 code 只输出一次")
 
 	cmd.AddCommand(exportCmd)
 
