@@ -61,11 +61,14 @@
 
         const main = () => {
             document.querySelector('.app-container').innerHTML = `<div class="launch-container">
+                <div class="launch-icon">⌨️</div>
                 <h1 class="launch-title">输入法练习工具</h1>
+                <p class="launch-subtitle">选择配置文件开始练习</p>
                 <div class="launch-select">
-                    <label for="configFile">选择方案文件</label>
                     <input type="file" id="configFile" accept=".json5">
+                    <label for="configFile" class="file-label">选择文件</label>
                 </div>
+                <p class="launch-hint">支持 .json5 配置文件</p>
             </div>`
             document.getElementById('configFile').addEventListener('change', onConfigSelected)
         }
@@ -73,7 +76,7 @@
         const showTemplate = (templateId) => {
             const mainEl = document.querySelector("main")
             if (templateId === "help-template") {
-                mainEl.innerHTML = config.helpTemplate
+                mainEl.innerHTML = config.help
                 return
             }
             const template = document.getElementById(templateId)
@@ -134,7 +137,7 @@
             resetTimer()
             updateTabStyles(0)
             const mainEl = document.querySelector("main")
-            mainEl.innerHTML = config.helpTemplate
+            mainEl.innerHTML = config.help
         }
 
         const modeConfigs = [
@@ -147,7 +150,7 @@
             const nav = document.querySelector(".nav-tabs")
             nav.querySelectorAll(".tab").forEach(t => t.remove())
 
-            config.tabConfigs.forEach((tabConfig, i) => {
+            config.tabs.forEach((tabConfig, i) => {
                 const btn = document.createElement("button")
                 btn.className = "tab"
                 btn.id = `tab${i}`
@@ -196,7 +199,7 @@
             totalIndex = 0; wordCount = 0; curTab = val
             speedLabel.textContent = "速度：0.00字/分"
 
-            const allWords = getWordsByRange(config.tabConfigs[val].beg, config.tabConfigs[val].end)
+            const allWords = getWordsByRange(config.tabs[val].beg, config.tabs[val].end)
             const modeIdx = getModeIndex()
             totalWords = modeConfigs[modeIdx].handler(allWords)
 
@@ -230,7 +233,7 @@
         const getWordsByRange = (beg, end) => {
             const words = []
             for (let i = beg; i < end; i++) {
-                const objs = config.rootMap[i]
+                const objs = config.items[i]
                 for (const key in objs) {
                     objs[key].forEach(code => words.push({ key, code }))
                 }
@@ -729,37 +732,75 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 60vh;
-            gap: 32px;
+            min-height: 70vh;
+            gap: 16px;
+            text-align: center;
+        }
+
+        .launch-icon {
+            font-size: 5rem;
+            margin-bottom: 8px;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
         }
 
         .launch-title {
             font-size: 2.5rem;
             font-weight: 700;
             color: var(--text-primary);
-            text-align: center;
+            margin: 0;
+        }
+
+        .launch-subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin: 0 0 24px 0;
         }
 
         .launch-select {
             display: flex;
+            flex-direction: column;
             align-items: center;
             gap: 12px;
-            font-size: 1.1rem;
         }
 
         .launch-select input[type="file"] {
-            padding: 12px 20px;
-            font-size: 1rem;
-            border: 2px solid var(--border);
-            border-radius: var(--radius);
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            cursor: pointer;
+            display: none;
         }
 
-        .launch-select input[type="file"]:focus {
-            border-color: var(--primary);
-            outline: none;
+        .file-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 32px;
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: white;
+            background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+        }
+
+        .file-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+        }
+
+        .file-label:active {
+            transform: translateY(0);
+        }
+
+        .launch-hint {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 16px;
         }
     </style>
 </head>
