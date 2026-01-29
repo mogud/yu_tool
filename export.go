@@ -1,9 +1,11 @@
 package main
 
 import (
+	"archive/zip"
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -16,14 +18,37 @@ func export(methodName, src, tar string) error {
 		return errors.New("method name cannot be empty")
 	}
 
-	// 1. Check if src folder and 'yuhao' folder under src exist
-	if _, err := os.Stat(src); os.IsNotExist(err) {
-		return fmt.Errorf("source directory '%s' does not exist", src)
-	}
+	// Check if src is a zip file
+	isZip := strings.HasSuffix(strings.ToLower(src), ".zip")
 
-	yuhaoPath := filepath.Join(src, "yuhao")
-	if _, err := os.Stat(yuhaoPath); os.IsNotExist(err) {
-		return fmt.Errorf("yuhao directory '%s' does not exist", yuhaoPath)
+	var yuhaoPath string
+	tempDir := ""
+
+	if isZip {
+		// Extract zip file to temporary directory
+		tmpDir, err := os.MkdirTemp("", "yu_tool_")
+		if err != nil {
+			return fmt.Errorf("failed to create temporary directory: %w", err)
+		}
+		tempDir = tmpDir
+		defer os.RemoveAll(tempDir) // Clean up temp directory
+
+		err = extractZipToDir(src, tempDir)
+		if err != nil {
+			return fmt.Errorf("failed to extract zip file: %w", err)
+		}
+
+		yuhaoPath = filepath.Join(tempDir, "schema/yuhao")
+	} else {
+		// 1. Check if src folder and 'yuhao' folder under src exist
+		if _, err := os.Stat(src); os.IsNotExist(err) {
+			return fmt.Errorf("source directory '%s' does not exist", src)
+		}
+
+		yuhaoPath = filepath.Join(src, "yuhao")
+		if _, err := os.Stat(yuhaoPath); os.IsNotExist(err) {
+			return fmt.Errorf("yuhao directory '%s' does not exist", yuhaoPath)
+		}
 	}
 
 	// 2. Check if tar folder exists, create it recursively if not
@@ -350,4 +375,53 @@ func isAllASCII(s string) bool {
 		}
 	}
 	return true
+}
+
+// Helper function to extract zip file to a destination directory
+func extractZipToDir(zipPath, destDir string) error {
+	r, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	for _, file := range r.File {
+		filePath := filepath.Join(destDir, file.Name)
+
+		// Check for ZipSlip vulnerability
+		if !strings.HasPrefix(filePath, filepath.Clean(destDir)+string(os.PathSeparator)) {
+			return fmt.Errorf("illegal file path: %s", filePath)
+		}
+
+		if file.FileInfo().IsDir() {
+			// Make folder
+			if err := os.MkdirAll(filePath, os.ModePerm); err != nil {
+				return err
+			}
+			continue
+		}
+
+		// Make sure the directory exists
+		if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
+			return err
+		}
+
+		// Extract file
+		fileReader, err := file.Open()
+		if err != nil {
+			return err
+		}
+		defer fileReader.Close()
+
+		targetFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
+		if err != nil {
+			return err
+		}
+		defer targetFile.Close()
+
+		if _, err := io.Copy(targetFile, fileReader); err != nil {
+			return err
+		}
+	}
+	return nil
 }
