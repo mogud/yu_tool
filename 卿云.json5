@@ -1,6 +1,7 @@
 {
-  name: "卿云字根练习",
+  name: "卿云字根简码练习",
   version: "1.0.0",
+  sversion: "2026.1.29-1",
   font: {
     name: "Yuniversus",
     file: "Yuniversus.woff",
