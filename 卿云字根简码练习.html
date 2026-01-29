@@ -954,6 +954,33 @@
             </div>`
         }
 
+        const onConfigSelected = async (e) => {
+            const file = e.target.files[0]
+            if (!file) return
+            try {
+                const text = await file.text()
+                const newConfig = JSON5.parse(text)
+                Object.assign(config, newConfig)
+                // 恢复主界面结构
+                document.querySelector('.app-container').innerHTML = `<header class="header">
+                    <h1 class="logo">卿云字根简码练习</h1>
+                    <p class="version">字根版本: 3.10.2 &thinsp;&thinsp;&thinsp;&thinsp;&thinsp;</p>
+                    <p class="version">软件版本: 2026-1-18.2</p>
+                </header>
+                <nav class="nav-tabs"></nav>
+                <main></main>`
+                // 初始化变量
+                speedTimer = null; wordCount = 0; startTime = 0
+                curInputMax = 0; curInputIndex = 0; curTab = 0
+                totalWords = []; totalIndex = 0
+                initTabs()
+                displayHelp()
+            } catch (err) {
+                console.error('加载配置失败:', err, err.stack)
+                alert('加载配置失败: ' + err.message + '\n请查看控制台获取详情')
+            }
+        }
+
         const initDomReferences = () => {
             rawArea = document.getElementById("rawArea")
             userInput = document.getElementById("userInput")
@@ -976,12 +1003,14 @@
         }
 
         const main = () => {
-            speedTimer = null; wordCount = 0; startTime = 0
-            curInputMax = 0; curInputIndex = 0; curTab = 0
-            totalWords = []; totalIndex = 0
-
-            initTabs()
-            displayHelp()
+            document.querySelector('.app-container').innerHTML = `<div class="launch-container">
+                <h1 class="launch-title">输入法练习工具</h1>
+                <div class="launch-select">
+                    <label for="configFile">选择方案文件</label>
+                    <input type="file" id="configFile" accept=".json5">
+                </div>
+            </div>`
+            document.getElementById('configFile').addEventListener('change', onConfigSelected)
         }
 
         const showTemplate = (templateId) => {
@@ -991,6 +1020,10 @@
                 return
             }
             const template = document.getElementById(templateId)
+            if (!template) {
+                console.error('Template not found:', templateId)
+                return
+            }
             const clone = template.content.cloneNode(true)
 
             if (templateId === "practice-template") {
@@ -1043,7 +1076,8 @@
         const displayHelp = () => {
             resetTimer()
             updateTabStyles(0)
-            showTemplate("help-template")
+            const mainEl = document.querySelector("main")
+            mainEl.innerHTML = config.helpTemplate
         }
 
         const modeConfigs = [
@@ -1632,53 +1666,80 @@
                 text-align: center;
             }
         }
+
+        .launch-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+            gap: 32px;
+        }
+
+        .launch-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-align: center;
+        }
+
+        .launch-select {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.1rem;
+        }
+
+        .launch-select input[type="file"] {
+            padding: 12px 20px;
+            font-size: 1rem;
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        .launch-select input[type="file"]:focus {
+            border-color: var(--primary);
+            outline: none;
+        }
     </style>
 </head>
 
 <body onload="main()">
-    <div class="app-container">
-        <header class="header">
-            <h1 class="logo">卿云字根简码练习</h1>
-            <p class="version">字根版本: 3.10.2 &thinsp;&thinsp;&thinsp;&thinsp;&thinsp;</p>
-            <p class="version">软件版本: 2026-1-18.2</p>
-        </header>
-
-        <nav class="nav-tabs"></nav>
-
-        <template id="practice-template">
-            <div class="card practice-card">
-                <div class="settings-bar">
-                    <div class="setting-group">
-                        <label>单次字数</label>
-                        <input id="oneTimeCount" class="spinner" type="number" min="10" max="500" value="30">
-                    </div>
-                    <div class="setting-group">
-                        <label>练习总数</label>
-                        <input id="totalCount" class="spinner" type="number" min="10" max="500" value="120">
-                    </div>
-                    <div class="setting-group checkbox-group">
-                        <label class="checkbox-label">
-                            <input id="showHint" type="checkbox">
-                            <span>显示提示</span>
-                        </label>
-                    </div>
-                    <div class="radio-group"></div>
+    <div class="app-container"></div>
+    <template id="practice-template">
+        <div class="card practice-card">
+            <div class="settings-bar">
+                <div class="setting-group">
+                    <label>单次字数</label>
+                    <input id="oneTimeCount" class="spinner" type="number" min="10" max="500" value="30">
                 </div>
-                <div class="stats-bar">
-                    <span id="progressLabel"></span>
-                    <span id="speedLabel"></span>
+                <div class="setting-group">
+                    <label>练习总数</label>
+                    <input id="totalCount" class="spinner" type="number" min="10" max="500" value="120">
                 </div>
-                <div class="content-area" id="content">
-                    <div class="display-area" id="rawArea"></div>
-                    <div class="input-area">
-                        <input id="userInput">
-                    </div>
+                <div class="setting-group checkbox-group">
+                    <label class="checkbox-label">
+                        <input id="showHint" type="checkbox">
+                        <span>显示提示</span>
+                    </label>
+                </div>
+                <div class="radio-group"></div>
+            </div>
+            <div class="stats-bar">
+                <span id="progressLabel"></span>
+                <span id="speedLabel"></span>
+            </div>
+            <div class="content-area" id="content">
+                <div class="display-area" id="rawArea"></div>
+                <div class="input-area">
+                    <input id="userInput">
                 </div>
             </div>
-        </template>
-
-        <main></main>
-    </div>
+        </div>
+    </template>
 </body>
 
 </html>
