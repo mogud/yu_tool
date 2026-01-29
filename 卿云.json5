@@ -922,5 +922,27 @@
     { label: "全部字根", type: "range", beg: 0, end: 5 },
     { label: "一级简码", type: "range", beg: 5, end: 6 },
     { label: "二级简码", type: "range", beg: 6, end: 7 },
-  ]
+  ],
+  helpTemplate: '<div class="card">\
+      <div class="help-block">\
+        <h3>单字规则</h3>\
+        <p>首根 A，次根 B，三根 C，末根 Z，补码 z</p>\
+        <div class="help-items">\
+          <div><code>Zz</code> 单根字</div>\
+          <div><code>AZz</code> 双根字</div>\
+          <div><code>ABZz</code> 三根字</div>\
+          <div><code>ABCZ</code> 多根字</div>\
+        </div>\
+      </div>\
+      <div class="help-block">\
+        <h3>词组规则</h3>\
+        <p>首字首码 A，二字首码 B，三字首码 C，末字首码 Z</p>\
+        <div class="help-items">\
+          <div><code>AaZz</code> 二字词</div>\
+          <div><code>ABZz</code> 三字词</div>\
+          <div><code>ABCZ</code> 多字词</div>\
+        </div>\
+      </div>\
+      <div class="help-hint">💡 点击上方分类开始练习</div>\
+    </div>'
 }
