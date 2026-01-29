@@ -94,12 +94,19 @@ func exportRoot(methodName, yuhaoPath, tar string) error {
 		return fmt.Errorf("error reading dictionary file: %w", err)
 	}
 
-	// Get list of unique keyCodes and sort them
+	// Get list of unique keyCodes and sort them by length first, then alphabetically
 	var sortedKeyCodes []string
 	for keyCode := range wordToKeyCodeMap {
 		sortedKeyCodes = append(sortedKeyCodes, keyCode)
 	}
-	sort.Strings(sortedKeyCodes)
+	sort.SliceStable(sortedKeyCodes, func(i, j int) bool {
+		keyCodeI := sortedKeyCodes[i]
+		keyCodeJ := sortedKeyCodes[j]
+		if len(keyCodeI) != len(keyCodeJ) {
+			return len(keyCodeI) < len(keyCodeJ) // Shorter keyCodes first
+		}
+		return keyCodeI < keyCodeJ // Then alphabetical
+	})
 
 	// Write sorted entries to output file
 	for _, keyCode := range sortedKeyCodes {
@@ -180,7 +187,7 @@ func exportQuickWords(methodName, yuhaoPath, tar string) error {
 	}
 
 	// Sort both lists by code: shorter codes first, then alphabetically
-	sort.Slice(wordsList, func(i, j int) bool {
+	sort.SliceStable(wordsList, func(i, j int) bool {
 		codeI := wordsList[i][1]
 		codeJ := wordsList[j][1]
 		if len(codeI) != len(codeJ) {
@@ -189,7 +196,7 @@ func exportQuickWords(methodName, yuhaoPath, tar string) error {
 		return codeI < codeJ // Then alphabetical
 	})
 
-	sort.Slice(charsList, func(i, j int) bool {
+	sort.SliceStable(charsList, func(i, j int) bool {
 		codeI := charsList[i][1]
 		codeJ := charsList[j][1]
 		if len(codeI) != len(codeJ) {
