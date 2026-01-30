@@ -79,6 +79,11 @@ func export(src, tar string) error {
 		}
 	}
 
+	// Export template file if exists
+	if err := exportTemplate(config); err != nil {
+		return fmt.Errorf("failed to export template: %w", err)
+	}
+
 	return nil
 }
 
@@ -438,5 +443,46 @@ func extractFile(file *zip.File, destDir string) error {
 	defer dst.Close()
 
 	_, err = io.Copy(dst, src)
+	return err
+}
+
+// exportTemplate copies methodName.template.json5 to target directory if it exists
+func exportTemplate(config ExportConfig) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current directory: %w", err)
+	}
+
+	templatePath := filepath.Join(cwd, config.MethodName+".template.json5")
+	destPath := filepath.Join(config.TargetPath, config.MethodName+".template.json5")
+
+	if _, err := os.Stat(templatePath); os.IsNotExist(err) {
+		// Template file doesn't exist, skip silently
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("failed to check template file: %w", err)
+	}
+
+	if err := copyFile(templatePath, destPath); err != nil {
+		return fmt.Errorf("failed to copy template file: %w", err)
+	}
+	return nil
+}
+
+func copyFile(src, dst string) error {
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	_, err = io.Copy(dstFile, srcFile)
 	return err
 }
