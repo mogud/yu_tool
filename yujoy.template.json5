@@ -78,7 +78,7 @@
   help: '<div class="card">\
       <div class="help-block">\
         <h3>单字规则</h3>\
-        <p>首根 A，次根 B，三根 C，末根 Z，补码 z</p>\
+        <p>首根 A，次根 B，三根 C，末根 Z，末根次码 z</p>\
         <div class="help-items">\
           <div><code>Zz</code> 单根字</div>\
           <div><code>AZz</code> 双根字</div>\
@@ -88,7 +88,7 @@
       </div>\
       <div class="help-block">\
         <h3>词组规则</h3>\
-        <p>首字首码 A，二字首码 B，三字首码 C，末字首码 Z</p>\
+        <p>首字首码 A，首字次码 a，二字首码 B，三字首码 C，末字首码 Z，末字次码 z</p>\
         <div class="help-items">\
           <div><code>AaZz</code> 二字词</div>\
           <div><code>ABZz</code> 三字词</div>\

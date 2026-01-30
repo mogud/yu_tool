@@ -1,7 +1,7 @@
 {
-  name: "灵明字根简码练习",
+  name: "日月字根简码练习",
   version: "无",
-  sversion: "2026.1.30-4",
+  sversion: "2026.1.30-0",
   font: {
     name: "Yuniversus",
     file: "Yuniversus.woff",
@@ -127,8 +127,8 @@
           <table class="chars-table">\
             <thead>\
               <tr>\
-                <th>首根是大根</th>\
-                <th>首根是小根</th>\
+                <th>首根有声码</th>\
+                <th>首根有声码</th>\
                 <th>字根数</th>\
               </tr>\
             </thead>\
@@ -139,18 +139,18 @@
                 <td>单根字</td>\
               </tr>\
               <tr>\
-                <td><code>AaZz</code></td>\
+                <td><code>AaZzx</code></td>\
                 <td><code>AZzx</code></td>\
                 <td>双根字</td>\
               </tr>\
               <tr>\
-                <td><code>AaBZ</code></td>\
-                <td><code>ABZz</code></td>\
+                <td><code>AaBZz</code></td>\
+                <td><code>ABZzx</code></td>\
                 <td>三根字</td>\
               </tr>\
               <tr>\
-                <td><code>AaBZ</code></td>\
-                <td><code>ABCZ</code></td>\
+                <td><code>AaBCZ</code></td>\
+                <td><code>ABCZz</code></td>\
                 <td>多根字</td>\
               </tr>\
             </tbody>\
