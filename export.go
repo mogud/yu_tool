@@ -21,10 +21,9 @@ type ExportConfig struct {
 	Suffix     string
 	YuhaoPath  string
 	TargetPath string
-	Unique     bool
 }
 
-func export(src, tar string, unique bool) error {
+func export(src, tar string) error {
 	// Validate src is a zip file
 	if !strings.HasSuffix(strings.ToLower(src), ".zip") {
 		return fmt.Errorf("source must be a zip file, got: %s", src)
@@ -55,7 +54,6 @@ func export(src, tar string, unique bool) error {
 		Suffix:     suffix,
 		YuhaoPath:  filepath.Join(tempDir, "schema/yuhao"),
 		TargetPath: tar,
-		Unique:     unique,
 	}
 
 	// Ensure target directory exists
@@ -164,7 +162,7 @@ func sortByCode(entries []DictEntry) {
 	})
 }
 
-func writeCodeWordPairs(path string, entries []DictEntry, unique bool) error {
+func writeCodeWordPairs(path string, entries []DictEntry) error {
 	file, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("failed to create '%s': %w", path, err)
@@ -175,7 +173,7 @@ func writeCodeWordPairs(path string, entries []DictEntry, unique bool) error {
 
 	seenCodes := make(map[string]bool)
 	for _, entry := range entries {
-		if unique && seenCodes[entry[0]] {
+		if seenCodes[entry[0]] {
 			continue
 		}
 		seenCodes[entry[0]] = true
@@ -280,10 +278,10 @@ func exportQuickWords(config ExportConfig) error {
 		return fmt.Errorf("error reading dictionary: %w", err)
 	}
 
-	if err := writeCodeWordPairs(filepath.Join(config.TargetPath, "quick_words.txt"), words, config.Unique); err != nil {
+	if err := writeCodeWordPairs(filepath.Join(config.TargetPath, "quick_words.txt"), words); err != nil {
 		return err
 	}
-	return writeCodeWordPairs(filepath.Join(config.TargetPath, "quick_chars.txt"), chars, config.Unique)
+	return writeCodeWordPairs(filepath.Join(config.TargetPath, "quick_chars.txt"), chars)
 }
 
 func exportPopWords(config ExportConfig) error {
@@ -317,10 +315,10 @@ func exportPopWords(config ExportConfig) error {
 		return fmt.Errorf("error reading dictionary: %w", err)
 	}
 
-	if err := writeCodeWordPairs(filepath.Join(config.TargetPath, "pop_words.txt"), words, config.Unique); err != nil {
+	if err := writeCodeWordPairs(filepath.Join(config.TargetPath, "pop_words.txt"), words); err != nil {
 		return err
 	}
-	return writeCodeWordPairs(filepath.Join(config.TargetPath, "pop_chars.txt"), chars, config.Unique)
+	return writeCodeWordPairs(filepath.Join(config.TargetPath, "pop_chars.txt"), chars)
 }
 
 func isEnglishLettersOnly(s string) bool {
