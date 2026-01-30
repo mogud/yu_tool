@@ -67,6 +67,7 @@ type TemplateTab struct {
 // ExportConfig contains configuration for export operations
 type ExportConfig struct {
 	MethodName string
+	Version    string
 	YuhaoPath  string
 	TargetPath string
 }
@@ -97,8 +98,13 @@ func export(src, tar string) error {
 
 	baseMethodName := parseMethodName(methodName)
 
+	// Extract version from source filename
+	// Format: methodName_version.zip or methodName_suffix_version.zip
+	version := extractVersionFromFilename(src)
+
 	config := ExportConfig{
 		MethodName: baseMethodName,
+		Version:    version,
 		YuhaoPath:  filepath.Join(tempDir, "schema/yuhao"),
 		TargetPath: tar,
 	}
@@ -138,6 +144,21 @@ func export(src, tar string) error {
 
 func parseMethodName(methodName string) string {
 	return methodName
+}
+
+// extractVersionFromFilename extracts version from source filename
+// Format: methodName_version.zip or methodName_suffix_version.zip
+// Returns the second part after splitting by '_' and removing .zip suffix
+func extractVersionFromFilename(filename string) string {
+	baseName := filepath.Base(filename)
+	// Remove .zip suffix
+	baseName = strings.TrimSuffix(baseName, ".zip")
+	// Split by '_'
+	parts := strings.Split(baseName, "_")
+	if len(parts) >= 2 {
+		return parts[1]
+	}
+	return ""
 }
 
 // findSuffixedFiles finds files matching pattern: methodName_*.fileType.dict.yaml
@@ -696,12 +717,17 @@ func exportTemplateFromFile(templatePath, outputName, methodNameSuffix string, c
 	// Convert to Template for JSON output (ItemsMeta will be excluded)
 	tmpl := Template{
 		Name:     tmplMeta.Name,
-		Version:  tmplMeta.Version,
+		Version:  config.Version,
 		SVersion: tmplMeta.SVersion,
 		Font:     tmplMeta.Font,
 		Items:    items,
 		Tabs:     tmplMeta.Tabs,
 		Help:     tmplMeta.Help,
+	}
+
+	// Use template's Version if config.Version is empty
+	if tmpl.Version == "" {
+		tmpl.Version = tmplMeta.Version
 	}
 
 	// Write to output file with proper formatting
