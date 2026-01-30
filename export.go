@@ -61,8 +61,8 @@ type TemplateFont struct {
 type TemplateTab struct {
 	Label string `json:"label" mapstructure:"label"`
 	Type  string `json:"type" mapstructure:"type"`
-	Beg   int    `json:"beg,omitempty" mapstructure:"beg"`
-	End   int    `json:"end,omitempty" mapstructure:"end"`
+	Beg   int    `json:"beg" mapstructure:"beg"`
+	End   int    `json:"end" mapstructure:"end"`
 }
 
 // ExportConfig contains configuration for export operations
