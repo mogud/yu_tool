@@ -731,6 +731,10 @@ func exportTemplateFromFile(templatePath, outputName, methodNameSuffix string, c
 	}
 
 	// Write to output file with proper formatting
+	baseName := strings.TrimSuffix(outputName, ".json5")
+	if config.Version != "" {
+		outputName = baseName + "_" + config.Version + ".json5"
+	}
 	outputPath := filepath.Join(config.TargetPath, outputName)
 	outputData, err := json.MarshalIndent(tmpl, "", "  ")
 	if err != nil {
