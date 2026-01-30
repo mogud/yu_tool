@@ -81,7 +81,6 @@ func export(src, tar string, unique bool) error {
 			!strings.Contains(err.Error(), "cannot find the file") {
 			return fmt.Errorf("failed to export pop words: %w", err)
 		}
-		fmt.Printf("Warning: Pop words file not found, skipping pop words export\n")
 	}
 
 	return nil
@@ -350,27 +349,41 @@ func extractZipToDir(zipPath, destDir string) error {
 	defer r.Close()
 
 	for _, file := range r.File {
-		filePath := filepath.Join(destDir, file.Name)
-
-		// Prevent ZipSlip
-		if !strings.HasPrefix(filePath, filepath.Clean(destDir)+string(os.PathSeparator)) {
-			return fmt.Errorf("illegal file path: %s", filePath)
+		if err := extractFile(file, destDir); err != nil {
+			return err
 		}
-
-		if file.FileInfo().IsDir() {
-			os.MkdirAll(filePath, os.ModePerm)
-			continue
-		}
-
-		os.MkdirAll(filepath.Dir(filePath), os.ModePerm)
-
-		src, _ := file.Open()
-		defer src.Close()
-
-		dst, _ := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
-		defer dst.Close()
-
-		io.Copy(dst, src)
 	}
 	return nil
+}
+
+func extractFile(file *zip.File, destDir string) error {
+	filePath := filepath.Join(destDir, file.Name)
+
+	// Prevent ZipSlip
+	if !strings.HasPrefix(filePath, filepath.Clean(destDir)+string(os.PathSeparator)) {
+		return fmt.Errorf("illegal file path: %s", filePath)
+	}
+
+	if file.FileInfo().IsDir() {
+		return os.MkdirAll(filePath, os.ModePerm)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
+		return err
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	dst, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+
+	_, err = io.Copy(dst, src)
+	return err
 }
