@@ -33,11 +33,12 @@ type TemplateMeta struct {
 }
 
 type TemplateItemsMeta struct {
-	Category  []string `json:"category"`
-	Prefix    []string `json:"prefix"`
-	Suffix    []string `json:"suffix"`
-	MinLength int      `json:"min_length"`
-	MaxLength int      `json:"max_length"`
+	Category   []string `json:"category"`
+	Prefix     []string `json:"prefix"`
+	Suffix     []string `json:"suffix"`
+	MinLength  int      `json:"min_length"`
+	MaxLength  int      `json:"max_length"`
+	WithSuffix string   `json:"with_suffix"`
 }
 
 // Template represents the structure for export (same as TemplateMeta but without ItemsMeta)
