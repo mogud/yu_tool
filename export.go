@@ -22,14 +22,14 @@ type DictEntry [2]string
 
 // TemplateMeta represents the full structure of a template.json5 file (includes ItemsMeta for generation)
 type TemplateMeta struct {
-	Name      string                         `json:"name"`
-	Version   string                         `json:"version"`
-	SVersion  string                         `json:"sversion"`
-	Font      TemplateFont                   `json:"font"`
-	Items     []map[string][]string          `json:"items"`
-	ItemsMeta []map[string]TemplateItemsMeta `json:"items_meta"`
-	Tabs      []TemplateTab                  `json:"tabs"`
-	Help      string                         `json:"help"`
+	Name      string                `json:"name"`
+	Version   string                `json:"version"`
+	SVersion  string                `json:"sversion"`
+	Font      TemplateFont          `json:"font"`
+	Items     []map[string][]string `json:"items"`
+	ItemsMeta []TemplateItemsMeta   `json:"items_meta"`
+	Tabs      []TemplateTab         `json:"tabs"`
+	Help      string                `json:"help"`
 }
 
 type TemplateItemsMeta struct {
