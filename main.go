@@ -21,11 +21,10 @@ func main() {
 	var unique bool
 
 	var exportCmd = &cobra.Command{
-		Use:   "export [method name]",
-		Short: "导出宇浩指定输入法的字根、简码",
-		Args:  cobra.MinimumNArgs(1),
+		Use:   "export",
+		Short: "导出宇浩输入法的字根、简码",
 		Run: func(cmd *cobra.Command, args []string) {
-			cobra.CheckErr(export(args[0], sourceDir, targetDir, unique))
+			cobra.CheckErr(export(sourceDir, targetDir, unique))
 		},
 	}
 

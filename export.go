@@ -24,15 +24,7 @@ type ExportConfig struct {
 	Unique     bool
 }
 
-func export(methodName, src, tar string, unique bool) error {
-	// Validate methodName
-	if methodName == "" {
-		return errors.New("method name cannot be empty")
-	}
-
-	// Parse methodName and suffix
-	baseMethodName, suffix := parseMethodName(methodName)
-
+func export(src, tar string, unique bool) error {
 	// Validate src is a zip file
 	if !strings.HasSuffix(strings.ToLower(src), ".zip") {
 		return fmt.Errorf("source must be a zip file, got: %s", src)
@@ -48,6 +40,15 @@ func export(methodName, src, tar string, unique bool) error {
 	if err := extractZipToDir(src, tempDir); err != nil {
 		return fmt.Errorf("failed to extract zip file: %w", err)
 	}
+
+	// Read schema name from default.custom.yaml
+	customPath := filepath.Join(tempDir, "schema/default.custom.yaml")
+	methodName, err := readSchemaName(customPath)
+	if err != nil {
+		return fmt.Errorf("failed to read schema name: %w", err)
+	}
+
+	baseMethodName, suffix := parseMethodName(methodName)
 
 	config := ExportConfig{
 		MethodName: baseMethodName,
@@ -92,6 +93,54 @@ func parseMethodName(methodName string) (base, suffix string) {
 		return parts[0], ""
 	}
 	return parts[0], parts[1]
+}
+
+// readSchemaName reads the shortest schema name from default.custom.yaml
+// Looks for lines containing "- schema:" and extracts the schema name
+func readSchemaName(configPath string) (string, error) {
+	file, err := os.Open(configPath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	var schemaNames []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		// Skip empty lines and comments
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		// Find lines containing "- schema:"
+		if idx := strings.Index(line, "- schema:"); idx != -1 {
+			// Get the part after "- schema:"
+			schemaPart := strings.TrimSpace(line[idx+len("- schema:"):])
+			// Extract the first word (schema name)
+			fields := strings.Fields(schemaPart)
+			if len(fields) > 0 {
+				schemaNames = append(schemaNames, fields[0])
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+
+	if len(schemaNames) == 0 {
+		return "", errors.New("no schema name found in default.custom.yaml")
+	}
+
+	// Return the shortest schema name
+	shortest := schemaNames[0]
+	for _, name := range schemaNames[1:] {
+		if len(name) < len(shortest) {
+			shortest = name
+		}
+	}
+	return shortest, nil
 }
 
 func findDictFile(yuhaoPath, methodName, suffix, fileType string) string {
