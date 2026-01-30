@@ -6,7 +6,6 @@
     name: "Yuniversus",
     file: "Yuniversus.woff",
   },
-  items: [],
   items_meta: [
     {
       category: ["roots"],
