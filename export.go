@@ -20,18 +20,39 @@ import (
 // DictEntry represents a code-word pair [code, word]
 type DictEntry [2]string
 
+type TemplateMeta struct {
+	Name      string                         `json:"name"`
+	Version   string                         `json:"version"`
+	SVersion  string                         `json:"sversion"`
+	Font      TemplateFont                   `json:"font"`
+	Items     []map[string][]string          `json:"items"`
+	ItemsMeta []map[string]TemplateItemsMeta `json:"items_meta"`
+	Tabs      []TemplateTab                  `json:"tabs"`
+	Help      string                         `json:"help"`
+}
+
+type TemplateItemsMeta struct {
+	Category  []string `json:"category"`
+	Prefix    []string `json:"prefix"`
+	Suffix    []string `json:"suffix"`
+	MinLength int      `json:"min_length"`
+	MaxLength int      `json:"max_length"`
+}
+
 // Template represents the structure of a template.json5 file
 type Template struct {
-	Name     string `json:"name"`
-	Version  string `json:"version"`
-	SVersion string `json:"sversion"`
-	Font     struct {
-		Name string `json:"name"`
-		File string `json:"file"`
-	} `json:"font"`
-	Items []map[string][]string `json:"items"`
-	Tabs  []TemplateTab         `json:"tabs"`
-	Help  string                `json:"help"`
+	Name     string                `json:"name"`
+	Version  string                `json:"version"`
+	SVersion string                `json:"sversion"`
+	Font     TemplateFont          `json:"font"`
+	Items    []map[string][]string `json:"items"`
+	Tabs     []TemplateTab         `json:"tabs"`
+	Help     string                `json:"help"`
+}
+
+type TemplateFont struct {
+	Name string `json:"name"`
+	File string `json:"file"`
 }
 
 // TemplateTab represents a tab in the template
