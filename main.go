@@ -30,6 +30,7 @@ func main() {
 	}
 
 	exportCmd.Flags().StringVarP(&sourceDir, "source", "s", "", "宇浩发布的 zip 文件路径")
+	_ = exportCmd.MarkFlagRequired("source")
 	exportCmd.Flags().StringVarP(&targetDir, "target", "t", "./export", "导出路径")
 	exportCmd.Flags().BoolVarP(&unique, "unique", "u", false, "当设置时，quick 和 pop 的输出中，一个编码 code 只输出一次")
 

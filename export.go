@@ -12,431 +12,269 @@ import (
 	"strings"
 )
 
+// DictEntry represents a code-word pair [code, word]
+type DictEntry [2]string
+
+// ExportConfig contains configuration for export operations
+type ExportConfig struct {
+	MethodName string
+	Suffix     string
+	YuhaoPath  string
+	TargetPath string
+	Unique     bool
+}
+
 func export(methodName, src, tar string, unique bool) error {
-	// 0. Check if methodName is empty
+	// Validate methodName
 	if methodName == "" {
 		return errors.New("method name cannot be empty")
 	}
 
 	// Parse methodName and suffix
-	var baseMethodName, suffix string
-	parts := strings.Split(methodName, ",")
-	if len(parts) == 1 {
-		baseMethodName = parts[0]
-		suffix = ""
-	} else if len(parts) == 2 {
-		baseMethodName = parts[0]
-		suffix = parts[1]
-	} else {
-		return errors.New("invalid method name format, expected 'name' or 'name,suffix'")
-	}
+	baseMethodName, suffix := parseMethodName(methodName)
 
-	// Check if src is a zip file
-	isZip := strings.HasSuffix(strings.ToLower(src), ".zip")
-
-	// Check if src is a zip file
-	if !isZip {
+	// Validate src is a zip file
+	if !strings.HasSuffix(strings.ToLower(src), ".zip") {
 		return fmt.Errorf("source must be a zip file, got: %s", src)
 	}
 
-	// Extract zip file to temporary directory
+	// Extract zip to temporary directory
 	tempDir, err := os.MkdirTemp("", "yu_tool_")
 	if err != nil {
-		return fmt.Errorf("failed to create temporary directory: %w", err)
+		return fmt.Errorf("failed to create temp directory: %w", err)
 	}
-	defer os.RemoveAll(tempDir) // Clean up temp directory
+	defer os.RemoveAll(tempDir)
 
-	err = extractZipToDir(src, tempDir)
-	if err != nil {
+	if err := extractZipToDir(src, tempDir); err != nil {
 		return fmt.Errorf("failed to extract zip file: %w", err)
 	}
 
-	yuhaoPath := filepath.Join(tempDir, "schema/yuhao")
+	config := ExportConfig{
+		MethodName: baseMethodName,
+		Suffix:     suffix,
+		YuhaoPath:  filepath.Join(tempDir, "schema/yuhao"),
+		TargetPath: tar,
+		Unique:     unique,
+	}
 
-	// 2. Check if tar folder exists, create it recursively if not
+	// Ensure target directory exists
 	if _, err := os.Stat(tar); os.IsNotExist(err) {
 		if err := os.MkdirAll(tar, 0755); err != nil {
 			return fmt.Errorf("failed to create target directory '%s': %w", tar, err)
 		}
 	}
 
-	// 3. Export root
-	if err := exportRoot(baseMethodName, suffix, yuhaoPath, tar); err != nil {
+	// Export root
+	if err := exportRoot(config); err != nil {
 		return fmt.Errorf("failed to export root: %w", err)
 	}
 
-	// 4. Export quick words
-	if err := exportQuickWords(baseMethodName, suffix, yuhaoPath, tar, unique); err != nil {
+	// Export quick words
+	if err := exportQuickWords(config); err != nil {
 		return fmt.Errorf("failed to export quick words: %w", err)
 	}
 
-	// 5. Export pop words - ignore if file doesn't exist
-	if err := exportPopWords(baseMethodName, suffix, yuhaoPath, tar, unique); err != nil {
-		// Check if error is due to file not existing
-		if !strings.Contains(err.Error(), "no such file or directory") && !strings.Contains(err.Error(), "cannot find the file") {
+	// Export pop words (ignore if file doesn't exist)
+	if err := exportPopWords(config); err != nil {
+		if !strings.Contains(err.Error(), "no such file or directory") &&
+			!strings.Contains(err.Error(), "cannot find the file") {
 			return fmt.Errorf("failed to export pop words: %w", err)
 		}
-		// If it's a "file not found" error, just log and continue
 		fmt.Printf("Warning: Pop words file not found, skipping pop words export\n")
 	}
 
 	return nil
 }
 
-func exportRoot(methodName, suffix, yuhaoPath, tar string) error {
-	// Try to find file with suffix first
-	var dictFileName string
-	if suffix != "" {
-		dictFileNameWithSuffix := methodName + "_" + suffix + ".roots.dict.yaml"
-		dictFilePathWithSuffix := filepath.Join(yuhaoPath, dictFileNameWithSuffix)
-		if _, err := os.Stat(dictFilePathWithSuffix); err == nil {
-			// File with suffix exists, use it
-			dictFileName = dictFileNameWithSuffix
-		} else {
-			// File with suffix doesn't exist, fall back to original
-			dictFileName = methodName + ".roots.dict.yaml"
-		}
-	} else {
-		dictFileName = methodName + ".roots.dict.yaml"
+func parseMethodName(methodName string) (base, suffix string) {
+	parts := strings.Split(methodName, ",")
+	if len(parts) == 1 {
+		return parts[0], ""
 	}
+	return parts[0], parts[1]
+}
 
-	dictFilePath := filepath.Join(yuhaoPath, dictFileName)
+func findDictFile(yuhaoPath, methodName, suffix, fileType string) string {
+	if suffix != "" {
+		suffixedName := methodName + "_" + suffix + "." + fileType + ".dict.yaml"
+		suffixedPath := filepath.Join(yuhaoPath, suffixedName)
+		if _, err := os.Stat(suffixedPath); err == nil {
+			return suffixedPath
+		}
+	}
+	return filepath.Join(yuhaoPath, methodName+"."+fileType+".dict.yaml")
+}
 
-	file, err := os.Open(dictFilePath)
+func sortByCode(entries []DictEntry) {
+	sort.SliceStable(entries, func(i, j int) bool {
+		codeI := entries[i][0]
+		codeJ := entries[j][0]
+		if len(codeI) != len(codeJ) {
+			return len(codeI) < len(codeJ)
+		}
+		return codeI < codeJ
+	})
+}
+
+func writeCodeWordPairs(path string, entries []DictEntry, unique bool) error {
+	file, err := os.Create(path)
 	if err != nil {
-		return fmt.Errorf("failed to open dictionary file '%s': %w", dictFilePath, err)
+		return fmt.Errorf("failed to create '%s': %w", path, err)
 	}
 	defer file.Close()
 
-	// Create output file
-	outputFilePath := filepath.Join(tar, "roots.txt")
-	outputFile, err := os.Create(outputFilePath)
+	sortByCode(entries)
+
+	seenCodes := make(map[string]bool)
+	for _, entry := range entries {
+		if unique && seenCodes[entry[0]] {
+			continue
+		}
+		seenCodes[entry[0]] = true
+		if _, err := file.WriteString(entry[0] + "\t" + entry[1] + "\n"); err != nil {
+			return fmt.Errorf("failed to write to '%s': %w", path, err)
+		}
+	}
+	return nil
+}
+
+func exportRoot(config ExportConfig) error {
+	dictPath := findDictFile(config.YuhaoPath, config.MethodName, config.Suffix, "roots")
+
+	file, err := os.Open(dictPath)
 	if err != nil {
-		return fmt.Errorf("failed to create output file '%s': %w", outputFilePath, err)
+		return fmt.Errorf("failed to open '%s': %w", dictPath, err)
+	}
+	defer file.Close()
+
+	outputPath := filepath.Join(config.TargetPath, "roots.txt")
+	outputFile, err := os.Create(outputPath)
+	if err != nil {
+		return fmt.Errorf("failed to create '%s': %w", outputPath, err)
 	}
 	defer outputFile.Close()
 
-	// Map to store keyCodes and their corresponding words
-	wordToKeyCodeMap := make(map[string][]string) // map: keyCode -> list of words
-
+	// Build keyCode -> words map
+	wordMap := make(map[string][]string)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		// Process only lines that start with '+'
-		if strings.HasPrefix(line, "+") {
-			fields := strings.Fields(line)
-			if len(fields) >= 4 {
-				code := fields[1]
-				words := fields[3]
-				// Process the last field to extract key by removing '/lm' prefix
-				lastField := fields[len(fields)-1]
-				key := lastField[3:]
-				keyCode := key + code
+		if !strings.HasPrefix(line, "+") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 4 {
+			continue
+		}
+		code := fields[1]
+		words := fields[3]
+		key := fields[len(fields)-1][3:]
+		keyCode := key + code
 
-				// Add words corresponding to each keyCode
-				for _, word := range []rune(words) {
-					wordStr := string(word)
-					wordToKeyCodeMap[keyCode] = append(wordToKeyCodeMap[keyCode], wordStr)
-				}
-			}
+		for _, word := range []rune(words) {
+			wordMap[keyCode] = append(wordMap[keyCode], string(word))
 		}
 	}
-
 	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("error reading dictionary file: %w", err)
+		return fmt.Errorf("error reading dictionary: %w", err)
 	}
 
-	// Get list of unique keyCodes and sort them by length first, then alphabetically
-	var sortedKeyCodes []string
-	for keyCode := range wordToKeyCodeMap {
-		sortedKeyCodes = append(sortedKeyCodes, keyCode)
+	// Write sorted entries
+	var keyCodes []string
+	for k := range wordMap {
+		keyCodes = append(keyCodes, k)
 	}
-	sort.SliceStable(sortedKeyCodes, func(i, j int) bool {
-		keyCodeI := sortedKeyCodes[i]
-		keyCodeJ := sortedKeyCodes[j]
-		if len(keyCodeI) != len(keyCodeJ) {
-			return len(keyCodeI) < len(keyCodeJ) // Shorter keyCodes first
+	sort.SliceStable(keyCodes, func(i, j int) bool {
+		if len(keyCodes[i]) != len(keyCodes[j]) {
+			return len(keyCodes[i]) < len(keyCodes[j])
 		}
-		return keyCodeI < keyCodeJ // Then alphabetical
+		return keyCodes[i] < keyCodes[j]
 	})
 
-	// Write sorted entries to output file
-	for _, keyCode := range sortedKeyCodes {
-		words := wordToKeyCodeMap[keyCode]
-		for _, word := range words {
-			entry := word + "\t" + keyCode
-			_, err := outputFile.WriteString(entry + "\n")
-			if err != nil {
-				return fmt.Errorf("failed to write to output file: %w", err)
+	for _, keyCode := range keyCodes {
+		for _, word := range wordMap[keyCode] {
+			if _, err := outputFile.WriteString(word + "\t" + keyCode + "\n"); err != nil {
+				return fmt.Errorf("failed to write to '%s': %w", outputPath, err)
 			}
 		}
 	}
 	return nil
 }
 
-func exportQuickWords(methodName, suffix, yuhaoPath, tar string, unique bool) error {
-	// Try to find file with suffix first
-	var dictFileName string
-	if suffix != "" {
-		dictFileNameWithSuffix := methodName + "_" + suffix + ".quick.dict.yaml"
-		dictFilePathWithSuffix := filepath.Join(yuhaoPath, dictFileNameWithSuffix)
-		if _, err := os.Stat(dictFilePathWithSuffix); err == nil {
-			// File with suffix exists, use it
-			dictFileName = dictFileNameWithSuffix
-		} else {
-			// File with suffix doesn't exist, fall back to original
-			dictFileName = methodName + ".quick.dict.yaml"
-		}
-	} else {
-		dictFileName = methodName + ".quick.dict.yaml"
-	}
+func exportQuickWords(config ExportConfig) error {
+	dictPath := findDictFile(config.YuhaoPath, config.MethodName, config.Suffix, "quick")
 
-	dictFilePath := filepath.Join(yuhaoPath, dictFileName)
-
-	file, err := os.Open(dictFilePath)
+	file, err := os.Open(dictPath)
 	if err != nil {
-		return fmt.Errorf("failed to open dictionary file '%s': %w", dictFilePath, err)
+		return fmt.Errorf("failed to open '%s': %w", dictPath, err)
 	}
 	defer file.Close()
 
-	// Create output files
-	wordsOutputPath := filepath.Join(tar, "quick_words.txt")
-	charsOutputPath := filepath.Join(tar, "quick_chars.txt")
-
-	wordsFile, err := os.Create(wordsOutputPath)
-	if err != nil {
-		return fmt.Errorf("failed to create words output file '%s': %w", wordsOutputPath, err)
-	}
-	defer wordsFile.Close()
-
-	charsFile, err := os.Create(charsOutputPath)
-	if err != nil {
-		return fmt.Errorf("failed to create chars output file '%s': %w", charsOutputPath, err)
-	}
-	defer charsFile.Close()
-
-	// Slices to store words and chars with their codes
-	var wordsList [][2]string // [][word, code]
-	var charsList [][2]string // [][char, code]
+	var words, chars []DictEntry
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		line := scanner.Text()
-		fields := strings.Fields(line)
-
-		// Only process lines with exactly 2 fields
-		if len(fields) == 2 {
-			wordOrChar := fields[0]
-			code := fields[1]
-
-			// Check if code contains only English letters and wordOrChar is not all ASCII
-			if isEnglishLettersOnly(code) && !isAllASCII(wordOrChar) {
-				runes := []rune(wordOrChar)
-				if len(runes) > 1 {
-					// It's a word (more than one rune)
-					wordsList = append(wordsList, [2]string{wordOrChar, code})
-				} else {
-					// It's a character (single rune)
-					charsList = append(charsList, [2]string{wordOrChar, code})
-				}
-			}
+		fields := strings.Fields(scanner.Text())
+		if len(fields) != 2 {
+			continue
+		}
+		word, code := fields[0], fields[1]
+		if !isEnglishLettersOnly(code) || isAllASCII(word) {
+			continue
+		}
+		if len([]rune(word)) > 1 {
+			words = append(words, DictEntry{code, word})
+		} else {
+			chars = append(chars, DictEntry{code, word})
 		}
 	}
-
 	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("error reading dictionary file: %w", err)
+		return fmt.Errorf("error reading dictionary: %w", err)
 	}
 
-	// Sort both lists by code: shorter codes first, then alphabetically
-	sort.SliceStable(wordsList, func(i, j int) bool {
-		codeI := wordsList[i][1]
-		codeJ := wordsList[j][1]
-		if len(codeI) != len(codeJ) {
-			return len(codeI) < len(codeJ) // Shorter codes first
-		}
-		return codeI < codeJ // Then alphabetical
-	})
-
-	sort.SliceStable(charsList, func(i, j int) bool {
-		codeI := charsList[i][1]
-		codeJ := charsList[j][1]
-		if len(codeI) != len(codeJ) {
-			return len(codeI) < len(codeJ) // Shorter codes first
-		}
-		return codeI < codeJ // Then alphabetical
-	})
-
-	// Write words to file
-	seenCodesWords := make(map[string]bool)
-	for _, item := range wordsList {
-		if unique {
-			if seenCodesWords[item[1]] {
-				continue // Skip if code already written
-			}
-			seenCodesWords[item[1]] = true
-		}
-		_, err := wordsFile.WriteString(item[1] + "\t" + item[0] + "\n")
-		if err != nil {
-			return fmt.Errorf("failed to write to words file: %w", err)
-		}
+	if err := writeCodeWordPairs(filepath.Join(config.TargetPath, "quick_words.txt"), words, config.Unique); err != nil {
+		return err
 	}
-
-	// Write chars to file
-	seenCodesChars := make(map[string]bool)
-	for _, item := range charsList {
-		if unique {
-			if seenCodesChars[item[1]] {
-				continue // Skip if code already written
-			}
-			seenCodesChars[item[1]] = true
-		}
-		_, err := charsFile.WriteString(item[1] + "\t" + item[0] + "\n")
-		if err != nil {
-			return fmt.Errorf("failed to write to chars file: %w", err)
-		}
-	}
-
-	return nil
+	return writeCodeWordPairs(filepath.Join(config.TargetPath, "quick_chars.txt"), chars, config.Unique)
 }
 
-func exportPopWords(methodName, suffix, yuhaoPath, tar string, unique bool) error {
-	// 1. Check if src folder and 'yuhao' folder under src exist
-	if _, err := os.Stat(yuhaoPath); os.IsNotExist(err) {
-		return fmt.Errorf("yuhao directory '%s' does not exist", yuhaoPath)
-	}
+func exportPopWords(config ExportConfig) error {
+	dictPath := findDictFile(config.YuhaoPath, config.MethodName, config.Suffix, "pop")
 
-	// 2. Check if tar folder exists, create it recursively if not
-	if _, err := os.Stat(tar); os.IsNotExist(err) {
-		if err := os.MkdirAll(tar, 0755); err != nil {
-			return fmt.Errorf("failed to create target directory '%s': %w", tar, err)
-		}
-	}
-
-	// Try to find file with suffix first
-	var dictFileName string
-	if suffix != "" {
-		dictFileNameWithSuffix := methodName + "_" + suffix + ".pop.dict.yaml"
-		dictFilePathWithSuffix := filepath.Join(yuhaoPath, dictFileNameWithSuffix)
-		if _, err := os.Stat(dictFilePathWithSuffix); err == nil {
-			// File with suffix exists, use it
-			dictFileName = dictFileNameWithSuffix
-		} else {
-			// File with suffix doesn't exist, fall back to original
-			dictFileName = methodName + ".pop.dict.yaml"
-		}
-	} else {
-		dictFileName = methodName + ".pop.dict.yaml"
-	}
-
-	dictFilePath := filepath.Join(yuhaoPath, dictFileName)
-
-	file, err := os.Open(dictFilePath)
+	file, err := os.Open(dictPath)
 	if err != nil {
-		return fmt.Errorf("failed to open dictionary file '%s': %w", dictFilePath, err)
+		return fmt.Errorf("failed to open '%s': %w", dictPath, err)
 	}
 	defer file.Close()
 
-	// Create output files
-	popWordsOutputPath := filepath.Join(tar, "pop_words.txt")
-	popCharsOutputPath := filepath.Join(tar, "pop_chars.txt")
-
-	popWordsFile, err := os.Create(popWordsOutputPath)
-	if err != nil {
-		return fmt.Errorf("failed to create pop words output file '%s': %w", popWordsOutputPath, err)
-	}
-	defer popWordsFile.Close()
-
-	popCharsFile, err := os.Create(popCharsOutputPath)
-	if err != nil {
-		return fmt.Errorf("failed to create pop chars output file '%s': %w", popCharsOutputPath, err)
-	}
-	defer popCharsFile.Close()
-
-	// Slices to store words and chars with their codes
-	var wordsList [][2]string // [][word, code]
-	var charsList [][2]string // [][char, code]
+	var words, chars []DictEntry
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		line := scanner.Text()
-		fields := strings.Fields(line)
-
-		// Only process lines with exactly 2 fields
-		if len(fields) == 2 {
-			wordOrChar := fields[0]
-			code := fields[1]
-
-			// Check if code contains only English letters and wordOrChar is not all ASCII
-			if isEnglishLettersOnly(code) && !isAllASCII(wordOrChar) {
-				runes := []rune(wordOrChar)
-				if len(runes) > 1 {
-					// It's a word (more than one rune)
-					wordsList = append(wordsList, [2]string{wordOrChar, code})
-				} else {
-					// It's a character (single rune)
-					charsList = append(charsList, [2]string{wordOrChar, code})
-				}
-			}
+		fields := strings.Fields(scanner.Text())
+		if len(fields) != 2 {
+			continue
+		}
+		word, code := fields[0], fields[1]
+		if !isEnglishLettersOnly(code) || isAllASCII(word) {
+			continue
+		}
+		if len([]rune(word)) > 1 {
+			words = append(words, DictEntry{code, word})
+		} else {
+			chars = append(chars, DictEntry{code, word})
 		}
 	}
-
 	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("error reading dictionary file: %w", err)
+		return fmt.Errorf("error reading dictionary: %w", err)
 	}
 
-	// Sort both lists by code: shorter codes first, then alphabetically (stable sort)
-	sort.SliceStable(wordsList, func(i, j int) bool {
-		codeI := wordsList[i][1]
-		codeJ := wordsList[j][1]
-		if len(codeI) != len(codeJ) {
-			return len(codeI) < len(codeJ) // Shorter codes first
-		}
-		return codeI < codeJ // Then alphabetical
-	})
-
-	sort.SliceStable(charsList, func(i, j int) bool {
-		codeI := charsList[i][1]
-		codeJ := charsList[j][1]
-		if len(codeI) != len(codeJ) {
-			return len(codeI) < len(codeJ) // Shorter codes first
-		}
-		return codeI < codeJ // Then alphabetical
-	})
-
-	// Write words to file (code first, then word)
-	seenCodesWords := make(map[string]bool)
-	for _, item := range wordsList {
-		if unique {
-			if seenCodesWords[item[1]] {
-				continue // Skip if code already written
-			}
-			seenCodesWords[item[1]] = true
-		}
-		_, err := popWordsFile.WriteString(item[1] + "\t" + item[0] + "\n")
-		if err != nil {
-			return fmt.Errorf("failed to write to pop words file: %w", err)
-		}
+	if err := writeCodeWordPairs(filepath.Join(config.TargetPath, "pop_words.txt"), words, config.Unique); err != nil {
+		return err
 	}
-
-	// Write chars to file (code first, then char)
-	seenCodesChars := make(map[string]bool)
-	for _, item := range charsList {
-		if unique {
-			if seenCodesChars[item[1]] {
-				continue // Skip if code already written
-			}
-			seenCodesChars[item[1]] = true
-		}
-		_, err := popCharsFile.WriteString(item[1] + "\t" + item[0] + "\n")
-		if err != nil {
-			return fmt.Errorf("failed to write to pop chars file: %w", err)
-		}
-	}
-
-	return nil
+	return writeCodeWordPairs(filepath.Join(config.TargetPath, "pop_chars.txt"), chars, config.Unique)
 }
 
-// Helper function to check if a string contains only English letters
 func isEnglishLettersOnly(s string) bool {
 	for _, r := range s {
 		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')) {
@@ -446,7 +284,6 @@ func isEnglishLettersOnly(s string) bool {
 	return true
 }
 
-// Helper function to check if a string contains only ASCII characters
 func isAllASCII(s string) bool {
 	for _, r := range s {
 		if r > 127 {
@@ -456,7 +293,6 @@ func isAllASCII(s string) bool {
 	return true
 }
 
-// Helper function to extract zip file to a destination directory
 func extractZipToDir(zipPath, destDir string) error {
 	r, err := zip.OpenReader(zipPath)
 	if err != nil {
@@ -467,45 +303,25 @@ func extractZipToDir(zipPath, destDir string) error {
 	for _, file := range r.File {
 		filePath := filepath.Join(destDir, file.Name)
 
-		// Check for ZipSlip vulnerability
+		// Prevent ZipSlip
 		if !strings.HasPrefix(filePath, filepath.Clean(destDir)+string(os.PathSeparator)) {
 			return fmt.Errorf("illegal file path: %s", filePath)
 		}
 
 		if file.FileInfo().IsDir() {
-			// Make folder
-			if err := os.MkdirAll(filePath, os.ModePerm); err != nil {
-				return err
-			}
+			os.MkdirAll(filePath, os.ModePerm)
 			continue
 		}
 
-		// Make sure the directory exists
-		if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
-			return err
-		}
+		os.MkdirAll(filepath.Dir(filePath), os.ModePerm)
 
-		// Extract file
-		fileReader, err := file.Open()
-		if err != nil {
-			return err
-		}
+		src, _ := file.Open()
+		defer src.Close()
 
-		targetFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
-		if err != nil {
-			fileReader.Close() // Close fileReader if targetFile opening fails
-			return err
-		}
+		dst, _ := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
+		defer dst.Close()
 
-		if _, err := io.Copy(targetFile, fileReader); err != nil {
-			fileReader.Close() // Close fileReader if copy fails
-			targetFile.Close() // Close targetFile if copy fails
-			return err
-		}
-
-		// Close both files after successful copy
-		fileReader.Close()
-		targetFile.Close()
+		io.Copy(dst, src)
 	}
 	return nil
 }
