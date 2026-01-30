@@ -34,35 +34,24 @@ func export(methodName, src, tar string, unique bool) error {
 	// Check if src is a zip file
 	isZip := strings.HasSuffix(strings.ToLower(src), ".zip")
 
-	var yuhaoPath string
-	tempDir := ""
-
-	if isZip {
-		// Extract zip file to temporary directory
-		tmpDir, err := os.MkdirTemp("", "yu_tool_")
-		if err != nil {
-			return fmt.Errorf("failed to create temporary directory: %w", err)
-		}
-		tempDir = tmpDir
-		defer os.RemoveAll(tempDir) // Clean up temp directory
-
-		err = extractZipToDir(src, tempDir)
-		if err != nil {
-			return fmt.Errorf("failed to extract zip file: %w", err)
-		}
-
-		yuhaoPath = filepath.Join(tempDir, "schema/yuhao")
-	} else {
-		// 1. Check if src folder and 'yuhao' folder under src exist
-		if _, err := os.Stat(src); os.IsNotExist(err) {
-			return fmt.Errorf("source directory '%s' does not exist", src)
-		}
-
-		yuhaoPath = filepath.Join(src, "yuhao")
-		if _, err := os.Stat(yuhaoPath); os.IsNotExist(err) {
-			return fmt.Errorf("yuhao directory '%s' does not exist", yuhaoPath)
-		}
+	// Check if src is a zip file
+	if !isZip {
+		return fmt.Errorf("source must be a zip file, got: %s", src)
 	}
+
+	// Extract zip file to temporary directory
+	tempDir, err := os.MkdirTemp("", "yu_tool_")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary directory: %w", err)
+	}
+	defer os.RemoveAll(tempDir) // Clean up temp directory
+
+	err = extractZipToDir(src, tempDir)
+	if err != nil {
+		return fmt.Errorf("failed to extract zip file: %w", err)
+	}
+
+	yuhaoPath := filepath.Join(tempDir, "schema/yuhao")
 
 	// 2. Check if tar folder exists, create it recursively if not
 	if _, err := os.Stat(tar); os.IsNotExist(err) {
