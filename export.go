@@ -483,20 +483,59 @@ func exportTemplate(config ExportConfig) error {
 		return fmt.Errorf("failed to get current directory: %w", err)
 	}
 
-	templatePath := filepath.Join(cwd, config.MethodName+".template.json5")
-	destPath := filepath.Join(config.TargetPath, config.MethodName+".json5")
-
-	if _, err := os.Stat(templatePath); os.IsNotExist(err) {
-		// Template file doesn't exist, skip silently
-		return nil
+	// Export main template file (no suffix)
+	mainTemplatePath := filepath.Join(cwd, config.MethodName+".template.json5")
+	if _, err := os.Stat(mainTemplatePath); err == nil {
+		if err := exportTemplateFromFile(mainTemplatePath, config.MethodName+".json5", config); err != nil {
+			return fmt.Errorf("failed to export main template: %w", err)
+		}
 	}
+
+	// Find and export suffixed template files
+	suffixedTemplates := findSuffixedTemplates(cwd, config.MethodName, "template.json5")
+	for suffix, filePath := range suffixedTemplates {
+		outputName := config.MethodName + "_" + suffix + ".json5"
+		if err := exportTemplateFromFile(filePath, outputName, config); err != nil {
+			return fmt.Errorf("failed to export template '%s': %w", outputName, err)
+		}
+	}
+
+	return nil
+}
+
+// findSuffixedTemplates finds files matching pattern: methodName_*.suffix
+// Returns map of suffix -> file path
+func findSuffixedTemplates(cwd, methodName, suffix string) map[string]string {
+	result := make(map[string]string)
+
+	entries, err := os.ReadDir(cwd)
 	if err != nil {
-		return fmt.Errorf("failed to check template file: %w", err)
+		return result
 	}
 
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if !strings.HasPrefix(name, methodName+"_") || !strings.HasSuffix(name, "."+suffix) {
+			continue
+		}
+		// Extract suffix: methodName_suffix.suffix -> suffix
+		middle := strings.TrimPrefix(name, methodName+"_")
+		fileSuffix := strings.TrimSuffix(middle, "."+suffix)
+		if fileSuffix != "" && middle != fileSuffix {
+			result[fileSuffix] = filepath.Join(cwd, name)
+		}
+	}
+	return result
+}
+
+// exportTemplateFromFile reads a template file, updates sversion, and writes to target
+func exportTemplateFromFile(templatePath, outputName string, config ExportConfig) error {
 	// Read and parse JSON5 template using gookit/config
 	var tmpl Template
-	err = gkconfig.LoadFiles(templatePath)
+	err := gkconfig.LoadFiles(templatePath)
 	if err != nil {
 		return fmt.Errorf("failed to parse template file: %w", err)
 	}
@@ -512,12 +551,13 @@ func exportTemplate(config ExportConfig) error {
 	tmpl.SVersion = newVersion
 
 	// Write to output file with proper formatting
+	outputPath := filepath.Join(config.TargetPath, outputName)
 	outputData, err := json.MarshalIndent(tmpl, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal template: %w", err)
 	}
 
-	if err := os.WriteFile(destPath, outputData, 0644); err != nil {
+	if err := os.WriteFile(outputPath, outputData, 0644); err != nil {
 		return fmt.Errorf("failed to write output file: %w", err)
 	}
 
