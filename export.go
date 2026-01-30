@@ -22,14 +22,13 @@ type DictEntry [2]string
 
 // TemplateMeta represents the full structure of a template.json5 file (includes ItemsMeta for generation)
 type TemplateMeta struct {
-	Name      string                `json:"name"`
-	Version   string                `json:"version"`
-	SVersion  string                `json:"sversion"`
-	Font      TemplateFont          `json:"font"`
-	Items     []map[string][]string `json:"items"`
-	ItemsMeta []TemplateItemsMeta   `json:"items_meta"`
-	Tabs      []TemplateTab         `json:"tabs"`
-	Help      string                `json:"help"`
+	Name      string              `json:"name"`
+	Version   string              `json:"version"`
+	SVersion  string              `json:"sversion"`
+	Font      TemplateFont        `json:"font"`
+	ItemsMeta []TemplateItemsMeta `json:"items_meta"`
+	Tabs      []TemplateTab       `json:"tabs"`
+	Help      string              `json:"help"`
 }
 
 type TemplateItemsMeta struct {
@@ -509,7 +508,7 @@ func exportTemplate(config ExportConfig) error {
 	// Export main template file (no suffix)
 	mainTemplatePath := filepath.Join(cwd, config.MethodName+".template.json5")
 	if _, err := os.Stat(mainTemplatePath); err == nil {
-		if err := exportTemplateFromFile(mainTemplatePath, config.MethodName+".json5", config); err != nil {
+		if err := exportTemplateFromFile(mainTemplatePath, config.MethodName+".json5", "", config); err != nil {
 			return fmt.Errorf("failed to export main template: %w", err)
 		}
 	}
@@ -518,7 +517,7 @@ func exportTemplate(config ExportConfig) error {
 	suffixedTemplates := findSuffixedTemplates(cwd, config.MethodName, "template.json5")
 	for suffix, filePath := range suffixedTemplates {
 		outputName := config.MethodName + "_" + suffix + ".json5"
-		if err := exportTemplateFromFile(filePath, outputName, config); err != nil {
+		if err := exportTemplateFromFile(filePath, outputName, suffix, config); err != nil {
 			return fmt.Errorf("failed to export template '%s': %w", outputName, err)
 		}
 	}
@@ -554,8 +553,111 @@ func findSuffixedTemplates(cwd, methodName, suffix string) map[string]string {
 	return result
 }
 
+// generateItemsFromMeta generates Items based on ItemsMeta rules
+// Category values are item names (CategoryItem), e.g., "quick_words", "pop_words"
+// File format: "CategoryItem_methodNameSuffix.txt" or "CategoryItem.txt"
+func generateItemsFromMeta(itemsMeta []TemplateItemsMeta, targetPath, methodNameSuffix string) ([]map[string][]string, error) {
+	items := make([]map[string][]string, len(itemsMeta))
+
+	for i, meta := range itemsMeta {
+		itemMap := make(map[string][]string)
+
+		for _, categoryItem := range meta.Category {
+			// Try different file patterns based on methodNameSuffix
+			var filePatterns []string
+			if methodNameSuffix != "" {
+				filePatterns = []string{
+					categoryItem + "_" + methodNameSuffix + ".txt",
+					categoryItem + ".txt",
+				}
+			} else {
+				filePatterns = []string{
+					categoryItem + ".txt",
+				}
+			}
+
+			for _, filePattern := range filePatterns {
+				categoryFilePath := filepath.Join(targetPath, filePattern)
+				if _, err := os.Stat(categoryFilePath); os.IsNotExist(err) {
+					continue
+				}
+
+				// Read and parse the category file
+				file, err := os.Open(categoryFilePath)
+				if err != nil {
+					continue
+				}
+				scanner := bufio.NewScanner(file)
+				for scanner.Scan() {
+					line := scanner.Text()
+					fields := strings.Fields(line)
+					if len(fields) != 2 {
+						continue
+					}
+					code, word := fields[0], fields[1]
+
+					// Check Prefix (code must contain one of the prefixes)
+					if len(meta.Prefix) > 0 {
+						hasPrefix := false
+						for _, pre := range meta.Prefix {
+							if strings.HasPrefix(code, pre) {
+								hasPrefix = true
+								break
+							}
+						}
+						if !hasPrefix {
+							continue
+						}
+					}
+
+					// Check Suffix (code must contain one of the suffixes)
+					if len(meta.Suffix) > 0 {
+						hasSuffix := false
+						for _, suf := range meta.Suffix {
+							if strings.HasSuffix(code, suf) {
+								hasSuffix = true
+								break
+							}
+						}
+						if !hasSuffix {
+							continue
+						}
+					}
+
+					// Check MinLength
+					if meta.MinLength > 0 && len(code) < meta.MinLength {
+						continue
+					}
+
+					// Check MaxLength
+					if meta.MaxLength > 0 && len(code) > meta.MaxLength {
+						continue
+					}
+
+					// Apply WithSuffix
+					if meta.WithSuffix != "" {
+						code = code + meta.WithSuffix
+					}
+
+					// Add to item map
+					itemMap[code] = append(itemMap[code], word)
+				}
+				file.Close()
+			}
+		}
+
+		// Convert map to slice format
+		items[i] = make(map[string][]string)
+		for code, words := range itemMap {
+			items[i][code] = words
+		}
+	}
+
+	return items, nil
+}
+
 // exportTemplateFromFile reads a template file, updates sversion, and writes to target
-func exportTemplateFromFile(templatePath, outputName string, config ExportConfig) error {
+func exportTemplateFromFile(templatePath, outputName, methodNameSuffix string, config ExportConfig) error {
 	// Read and parse JSON5 template using gookit/config
 	var tmplMeta TemplateMeta
 	err := gkconfig.LoadFiles(templatePath)
@@ -573,13 +675,19 @@ func exportTemplateFromFile(templatePath, outputName string, config ExportConfig
 	}
 	tmplMeta.SVersion = newVersion
 
+	// Generate Items from ItemsMeta
+	items, err := generateItemsFromMeta(tmplMeta.ItemsMeta, config.TargetPath, methodNameSuffix)
+	if err != nil {
+		return fmt.Errorf("failed to generate items: %w", err)
+	}
+
 	// Convert to Template for JSON output (ItemsMeta will be excluded)
 	tmpl := Template{
 		Name:     tmplMeta.Name,
 		Version:  tmplMeta.Version,
 		SVersion: tmplMeta.SVersion,
 		Font:     tmplMeta.Font,
-		Items:    tmplMeta.Items,
+		Items:    items,
 		Tabs:     tmplMeta.Tabs,
 		Help:     tmplMeta.Help,
 	}
