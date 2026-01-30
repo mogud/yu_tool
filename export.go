@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,10 +11,36 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
+
+	gkconfig "github.com/gookit/config/v2"
+	"github.com/gookit/config/v2/json5"
 )
 
 // DictEntry represents a code-word pair [code, word]
 type DictEntry [2]string
+
+// Template represents the structure of a template.json5 file
+type Template struct {
+	Name     string `json:"name"`
+	Version  string `json:"version"`
+	SVersion string `json:"sversion"`
+	Font     struct {
+		Name string `json:"name"`
+		File string `json:"file"`
+	} `json:"font"`
+	Items []map[string][]string `json:"items"`
+	Tabs  []TemplateTab         `json:"tabs"`
+	Help  string                `json:"help"`
+}
+
+// TemplateTab represents a tab in the template
+type TemplateTab struct {
+	Label string `json:"label"`
+	Type  string `json:"type"`
+	Beg   int    `json:"beg,omitempty"`
+	End   int    `json:"end,omitempty"`
+}
 
 // ExportConfig contains configuration for export operations
 type ExportConfig struct {
@@ -446,15 +473,18 @@ func extractFile(file *zip.File, destDir string) error {
 	return err
 }
 
-// exportTemplate copies methodName.template.json5 to target directory if it exists
+// exportTemplate reads methodName.template.json5, updates sversion, and writes to target directory
 func exportTemplate(config ExportConfig) error {
+	// Register JSON5 driver
+	gkconfig.AddDriver(json5.Driver)
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
 	}
 
 	templatePath := filepath.Join(cwd, config.MethodName+".template.json5")
-	destPath := filepath.Join(config.TargetPath, config.MethodName+".template.json5")
+	destPath := filepath.Join(config.TargetPath, config.MethodName+".json5")
 
 	if _, err := os.Stat(templatePath); os.IsNotExist(err) {
 		// Template file doesn't exist, skip silently
@@ -464,10 +494,65 @@ func exportTemplate(config ExportConfig) error {
 		return fmt.Errorf("failed to check template file: %w", err)
 	}
 
-	if err := copyFile(templatePath, destPath); err != nil {
-		return fmt.Errorf("failed to copy template file: %w", err)
+	// Read and parse JSON5 template using gookit/config
+	var tmpl Template
+	err = gkconfig.LoadFiles(templatePath)
+	if err != nil {
+		return fmt.Errorf("failed to parse template file: %w", err)
 	}
+	if err := gkconfig.Decode(&tmpl); err != nil {
+		return fmt.Errorf("failed to decode template file: %w", err)
+	}
+
+	// Update sversion
+	newVersion, err := updateSVersion(tmpl.SVersion)
+	if err != nil {
+		return fmt.Errorf("failed to update sversion: %w", err)
+	}
+	tmpl.SVersion = newVersion
+
+	// Write to output file with proper formatting
+	outputData, err := json.MarshalIndent(tmpl, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal template: %w", err)
+	}
+
+	if err := os.WriteFile(destPath, outputData, 0644); err != nil {
+		return fmt.Errorf("failed to write output file: %w", err)
+	}
+
 	return nil
+}
+
+// updateSVersion updates the sversion based on current date
+// sversion format: "YYYY.M.D-seq" (e.g., "2026.1.29-1")
+func updateSVersion(current string) (string, error) {
+	// Parse current sversion
+	var datePart string
+	var seq int
+	parts := strings.Split(current, "-")
+	if len(parts) >= 2 {
+		datePart = parts[0]
+		if _, err := fmt.Sscanf(parts[1], "%d", &seq); err != nil {
+			seq = 0
+		}
+	} else {
+		datePart = current
+		seq = 0
+	}
+
+	// Get current date in the same format
+	now := time.Now()
+	currentDate := fmt.Sprintf("%d.%d.%d", now.Year(), int(now.Month()), now.Day())
+
+	// Compare dates and update sequence
+	if datePart == currentDate {
+		seq++
+	} else {
+		seq = 1
+	}
+
+	return fmt.Sprintf("%s-%d", currentDate, seq), nil
 }
 
 func copyFile(src, dst string) error {
