@@ -33,12 +33,12 @@ type TemplateMeta struct {
 }
 
 type TemplateItemsMeta struct {
-	Category   []string `json:"category" mapstructure:"category"`
-	Prefix     []string `json:"prefix" mapstructure:"prefix"`
-	Suffix     []string `json:"suffix" mapstructure:"suffix"`
-	MinLength  int      `json:"min_length" mapstructure:"min_length"`
-	MaxLength  int      `json:"max_length" mapstructure:"max_length"`
-	WithSuffix string   `json:"with_suffix" mapstructure:"with_suffix"`
+	Category     []string `json:"category" mapstructure:"category"`
+	Prefix       []string `json:"prefix" mapstructure:"prefix"`
+	Suffix       []string `json:"suffix" mapstructure:"suffix"`
+	MinLength    int      `json:"min_length" mapstructure:"min_length"`
+	MaxLength    int      `json:"max_length" mapstructure:"max_length"`
+	AppendSuffix string   `json:"append_suffix" mapstructure:"append_suffix"`
 }
 
 // Template represents the structure for export (same as TemplateMeta but without ItemsMeta)
@@ -670,9 +670,9 @@ func generateItemsFromMeta(itemsMeta []TemplateItemsMeta, targetPath, methodName
 						continue
 					}
 
-					// Apply WithSuffix
-					if meta.WithSuffix != "" {
-						code = code + meta.WithSuffix
+					// Apply AppendSuffix
+					if meta.AppendSuffix != "" {
+						code = code + meta.AppendSuffix
 					}
 
 					// Add to item map
