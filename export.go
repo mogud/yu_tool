@@ -22,22 +22,22 @@ type DictEntry [2]string
 
 // TemplateMeta represents the full structure of a template.json5 file (includes ItemsMeta for generation)
 type TemplateMeta struct {
-	Name      string              `json:"name"`
-	Version   string              `json:"version"`
-	SVersion  string              `json:"sversion"`
-	Font      TemplateFont        `json:"font"`
-	ItemsMeta []TemplateItemsMeta `json:"items_meta"`
-	Tabs      []TemplateTab       `json:"tabs"`
-	Help      string              `json:"help"`
+	Name      string              `json:"name" mapstructure:"name"`
+	Version   string              `json:"version" mapstructure:"version"`
+	SVersion  string              `json:"sversion" mapstructure:"sversion"`
+	Font      TemplateFont        `json:"font" mapstructure:"font"`
+	ItemsMeta []TemplateItemsMeta `json:"items_meta" mapstructure:"items_meta"`
+	Tabs      []TemplateTab       `json:"tabs" mapstructure:"tabs"`
+	Help      string              `json:"help" mapstructure:"help"`
 }
 
 type TemplateItemsMeta struct {
-	Category   []string `json:"category"`
-	Prefix     []string `json:"prefix"`
-	Suffix     []string `json:"suffix"`
-	MinLength  int      `json:"min_length"`
-	MaxLength  int      `json:"max_length"`
-	WithSuffix string   `json:"with_suffix"`
+	Category   []string `json:"category" mapstructure:"category"`
+	Prefix     []string `json:"prefix" mapstructure:"prefix"`
+	Suffix     []string `json:"suffix" mapstructure:"suffix"`
+	MinLength  int      `json:"min_length" mapstructure:"min_length"`
+	MaxLength  int      `json:"max_length" mapstructure:"max_length"`
+	WithSuffix string   `json:"with_suffix" mapstructure:"with_suffix"`
 }
 
 // Template represents the structure for export (same as TemplateMeta but without ItemsMeta)
@@ -52,16 +52,16 @@ type Template struct {
 }
 
 type TemplateFont struct {
-	Name string `json:"name"`
-	File string `json:"file"`
+	Name string `json:"name" mapstructure:"name"`
+	File string `json:"file" mapstructure:"file"`
 }
 
 // TemplateTab represents a tab in the template
 type TemplateTab struct {
-	Label string `json:"label"`
-	Type  string `json:"type"`
-	Beg   int    `json:"beg,omitempty"`
-	End   int    `json:"end,omitempty"`
+	Label string `json:"label" mapstructure:"label"`
+	Type  string `json:"type" mapstructure:"type"`
+	Beg   int    `json:"beg,omitempty" mapstructure:"beg"`
+	End   int    `json:"end,omitempty" mapstructure:"end"`
 }
 
 // ExportConfig contains configuration for export operations
@@ -554,8 +554,10 @@ func findSuffixedTemplates(cwd, methodName, suffix string) map[string]string {
 }
 
 // generateItemsFromMeta generates Items based on ItemsMeta rules
-// Category values are item names (CategoryItem), e.g., "quick_words", "pop_words"
+// Category values are item names (CategoryItem), e.g., "quick_words", "pop_words", "roots"
 // File format: "CategoryItem_methodNameSuffix.txt" or "CategoryItem.txt"
+// roots.txt format: "word keyCode" (e.g., "土 GA")
+// others format: "code word" (e.g., "ga 土")
 func generateItemsFromMeta(itemsMeta []TemplateItemsMeta, targetPath, methodNameSuffix string) ([]map[string][]string, error) {
 	items := make([]map[string][]string, len(itemsMeta))
 
@@ -594,7 +596,17 @@ func generateItemsFromMeta(itemsMeta []TemplateItemsMeta, targetPath, methodName
 					if len(fields) != 2 {
 						continue
 					}
-					code, word := fields[0], fields[1]
+
+					var code, word string
+					if categoryItem == "roots" {
+						// roots.txt format: "word keyCode"
+						word = fields[0]
+						code = fields[1]
+					} else {
+						// others format: "code word"
+						code = fields[0]
+						word = fields[1]
+					}
 
 					// Check Prefix (code must contain one of the prefixes)
 					if len(meta.Prefix) > 0 {
