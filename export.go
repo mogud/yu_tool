@@ -18,7 +18,6 @@ type DictEntry [2]string
 // ExportConfig contains configuration for export operations
 type ExportConfig struct {
 	MethodName string
-	Suffix     string
 	YuhaoPath  string
 	TargetPath string
 }
@@ -47,11 +46,10 @@ func export(src, tar string) error {
 		return fmt.Errorf("failed to read schema name: %w", err)
 	}
 
-	baseMethodName, suffix := parseMethodName(methodName)
+	baseMethodName := parseMethodName(methodName)
 
 	config := ExportConfig{
 		MethodName: baseMethodName,
-		Suffix:     suffix,
 		YuhaoPath:  filepath.Join(tempDir, "schema/yuhao"),
 		TargetPath: tar,
 	}
@@ -84,12 +82,36 @@ func export(src, tar string) error {
 	return nil
 }
 
-func parseMethodName(methodName string) (base, suffix string) {
-	parts := strings.Split(methodName, ",")
-	if len(parts) == 1 {
-		return parts[0], ""
+func parseMethodName(methodName string) string {
+	return methodName
+}
+
+// findSuffixedFiles finds files matching pattern: methodName_*.fileType.dict.yaml
+// Returns map of suffix -> file path
+func findSuffixedFiles(yuhaoPath, methodName, fileType string) map[string]string {
+	suffixes := make(map[string]string)
+
+	entries, err := os.ReadDir(yuhaoPath)
+	if err != nil {
+		return suffixes
 	}
-	return parts[0], parts[1]
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if !strings.HasPrefix(name, methodName+"_") || !strings.HasSuffix(name, "."+fileType+".dict.yaml") {
+			continue
+		}
+		// Extract suffix: methodName_suffix.fileType.dict.yaml -> suffix
+		middle := strings.TrimPrefix(name, methodName+"_")
+		suffix := strings.TrimSuffix(middle, "."+fileType+".dict.yaml")
+		if suffix != "" && middle != suffix {
+			suffixes[suffix] = filepath.Join(yuhaoPath, name)
+		}
+	}
+	return suffixes
 }
 
 // readSchemaName reads the shortest schema name from default.custom.yaml
@@ -140,17 +162,6 @@ func readSchemaName(configPath string) (string, error) {
 	return shortest, nil
 }
 
-func findDictFile(yuhaoPath, methodName, suffix, fileType string) string {
-	if suffix != "" {
-		suffixedName := methodName + "_" + suffix + "." + fileType + ".dict.yaml"
-		suffixedPath := filepath.Join(yuhaoPath, suffixedName)
-		if _, err := os.Stat(suffixedPath); err == nil {
-			return suffixedPath
-		}
-	}
-	return filepath.Join(yuhaoPath, methodName+"."+fileType+".dict.yaml")
-}
-
 func sortByCode(entries []DictEntry) {
 	sort.SliceStable(entries, func(i, j int) bool {
 		codeI := entries[i][0]
@@ -185,7 +196,7 @@ func writeCodeWordPairs(path string, entries []DictEntry) error {
 }
 
 func exportRoot(config ExportConfig) error {
-	dictPath := findDictFile(config.YuhaoPath, config.MethodName, config.Suffix, "roots")
+	dictPath := filepath.Join(config.YuhaoPath, config.MethodName+".roots.dict.yaml")
 
 	file, err := os.Open(dictPath)
 	if err != nil {
@@ -248,8 +259,25 @@ func exportRoot(config ExportConfig) error {
 }
 
 func exportQuickWords(config ExportConfig) error {
-	dictPath := findDictFile(config.YuhaoPath, config.MethodName, config.Suffix, "quick")
+	// Export main quick file (no suffix)
+	mainPath := filepath.Join(config.YuhaoPath, config.MethodName+".quick.dict.yaml")
+	if _, err := os.Stat(mainPath); err == nil {
+		if err := exportQuickWordsFromFile(config.YuhaoPath, mainPath, "", config); err != nil {
+			return err
+		}
+	}
 
+	// Find and export suffixed quick files
+	suffixedFiles := findSuffixedFiles(config.YuhaoPath, config.MethodName, "quick")
+	for suffix, filePath := range suffixedFiles {
+		if err := exportQuickWordsFromFile(config.YuhaoPath, filePath, suffix, config); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func exportQuickWordsFromFile(yuhaoPath, dictPath, suffix string, config ExportConfig) error {
 	file, err := os.Open(dictPath)
 	if err != nil {
 		return fmt.Errorf("failed to open '%s': %w", dictPath, err)
@@ -278,15 +306,37 @@ func exportQuickWords(config ExportConfig) error {
 		return fmt.Errorf("error reading dictionary: %w", err)
 	}
 
-	if err := writeCodeWordPairs(filepath.Join(config.TargetPath, "quick_words.txt"), words); err != nil {
+	suffixPrefix := ""
+	if suffix != "" {
+		suffixPrefix = "_" + suffix
+	}
+
+	if err := writeCodeWordPairs(filepath.Join(config.TargetPath, "quick_words"+suffixPrefix+".txt"), words); err != nil {
 		return err
 	}
-	return writeCodeWordPairs(filepath.Join(config.TargetPath, "quick_chars.txt"), chars)
+	return writeCodeWordPairs(filepath.Join(config.TargetPath, "quick_chars"+suffixPrefix+".txt"), chars)
 }
 
 func exportPopWords(config ExportConfig) error {
-	dictPath := findDictFile(config.YuhaoPath, config.MethodName, config.Suffix, "pop")
+	// Export main pop file (no suffix)
+	mainPath := filepath.Join(config.YuhaoPath, config.MethodName+".pop.dict.yaml")
+	if _, err := os.Stat(mainPath); err == nil {
+		if err := exportPopWordsFromFile(mainPath, "", config); err != nil {
+			return err
+		}
+	}
 
+	// Find and export suffixed pop files
+	suffixedFiles := findSuffixedFiles(config.YuhaoPath, config.MethodName, "pop")
+	for suffix, filePath := range suffixedFiles {
+		if err := exportPopWordsFromFile(filePath, suffix, config); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func exportPopWordsFromFile(dictPath, suffix string, config ExportConfig) error {
 	file, err := os.Open(dictPath)
 	if err != nil {
 		return fmt.Errorf("failed to open '%s': %w", dictPath, err)
@@ -315,10 +365,15 @@ func exportPopWords(config ExportConfig) error {
 		return fmt.Errorf("error reading dictionary: %w", err)
 	}
 
-	if err := writeCodeWordPairs(filepath.Join(config.TargetPath, "pop_words.txt"), words); err != nil {
+	suffixPrefix := ""
+	if suffix != "" {
+		suffixPrefix = "_" + suffix
+	}
+
+	if err := writeCodeWordPairs(filepath.Join(config.TargetPath, "pop_words"+suffixPrefix+".txt"), words); err != nil {
 		return err
 	}
-	return writeCodeWordPairs(filepath.Join(config.TargetPath, "pop_chars.txt"), chars)
+	return writeCodeWordPairs(filepath.Join(config.TargetPath, "pop_chars"+suffixPrefix+".txt"), chars)
 }
 
 func isEnglishLettersOnly(s string) bool {
