@@ -20,6 +20,7 @@ import (
 // DictEntry represents a code-word pair [code, word]
 type DictEntry [2]string
 
+// TemplateMeta represents the full structure of a template.json5 file (includes ItemsMeta for generation)
 type TemplateMeta struct {
 	Name      string                         `json:"name"`
 	Version   string                         `json:"version"`
@@ -39,7 +40,7 @@ type TemplateItemsMeta struct {
 	MaxLength int      `json:"max_length"`
 }
 
-// Template represents the structure of a template.json5 file
+// Template represents the structure for export (same as TemplateMeta but without ItemsMeta)
 type Template struct {
 	Name     string                `json:"name"`
 	Version  string                `json:"version"`
@@ -555,21 +556,32 @@ func findSuffixedTemplates(cwd, methodName, suffix string) map[string]string {
 // exportTemplateFromFile reads a template file, updates sversion, and writes to target
 func exportTemplateFromFile(templatePath, outputName string, config ExportConfig) error {
 	// Read and parse JSON5 template using gookit/config
-	var tmpl Template
+	var tmplMeta TemplateMeta
 	err := gkconfig.LoadFiles(templatePath)
 	if err != nil {
 		return fmt.Errorf("failed to parse template file: %w", err)
 	}
-	if err := gkconfig.Decode(&tmpl); err != nil {
+	if err := gkconfig.Decode(&tmplMeta); err != nil {
 		return fmt.Errorf("failed to decode template file: %w", err)
 	}
 
 	// Update sversion
-	newVersion, err := updateSVersion(tmpl.SVersion)
+	newVersion, err := updateSVersion(tmplMeta.SVersion)
 	if err != nil {
 		return fmt.Errorf("failed to update sversion: %w", err)
 	}
-	tmpl.SVersion = newVersion
+	tmplMeta.SVersion = newVersion
+
+	// Convert to Template for JSON output (ItemsMeta will be excluded)
+	tmpl := Template{
+		Name:     tmplMeta.Name,
+		Version:  tmplMeta.Version,
+		SVersion: tmplMeta.SVersion,
+		Font:     tmplMeta.Font,
+		Items:    tmplMeta.Items,
+		Tabs:     tmplMeta.Tabs,
+		Help:     tmplMeta.Help,
+	}
 
 	// Write to output file with proper formatting
 	outputPath := filepath.Join(config.TargetPath, outputName)
