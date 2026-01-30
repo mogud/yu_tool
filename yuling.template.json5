@@ -88,6 +88,8 @@
     { label: "NPQRS 键字根", type: "range", beg: 2, end: 3 },
     { label: "TVWXY 键字根", type: "range", beg: 3, end: 4 },
 
+    { label: "所有字根", type: "range", beg: 0, end: 4 },
+
     { label: "两键上屏字", type: "range", beg: 4, end: 5 },
     { label: "三键上屏字", type: "range", beg: 5, end: 6 },
 
@@ -104,23 +106,77 @@
     { label: "所有空格简", type: "range", beg: 7, end: 9 }
   ],
   help: '<div class="card">\
+      <style>\
+        .chars-table {\
+          width: 60%;\
+          margin-left: 0;\
+        }\
+        .words-table {\
+          width: 40%;\
+          margin-left: 0;\
+        }\
+        th, td {\
+          text-align: left;\
+          vertical-align: middle;\
+        }\
+      </style>\
       <div class="help-block">\
         <h3>单字规则</h3>\
-        <p>首根 A，次根 B，三根 C，末根 Z，补码 z</p>\
+        <p>首根首码 A，首根次码 a，次根首码 B，三根首码 C，末根首码 Z，末根次码 z，字根第三码 x</p>\
         <div class="help-items">\
-          <div><code>Zz</code> 单根字</div>\
-          <div><code>AZz</code> 双根字</div>\
-          <div><code>ABZz</code> 三根字</div>\
-          <div><code>ABCZ</code> 多根字</div>\
+          <table class="chars-table">\
+            <thead>\
+              <tr>\
+                <th>首根是大根</th>\
+                <th>首根是小根</th>\
+                <th>字根数</th>\
+              </tr>\
+            </thead>\
+            <tbody>\
+              <tr>\
+                <td><code>Aax</code></td>\
+                <td><code>Aa</code></td>\
+                <td>单根字</td>\
+              </tr>\
+              <tr>\
+                <td><code>AaBb</code></td>\
+                <td><code>ABbx</code></td>\
+                <td>双根字</td>\
+              </tr>\
+              <tr>\
+                <td><code>AaBC</code></td>\
+                <td><code>ABCc</code></td>\
+                <td>三根字</td>\
+              </tr>\
+              <tr>\
+                <td><code>AaBZ</code></td>\
+                <td><code>ABCZ</code></td>\
+                <td>多根字</td>\
+              </tr>\
+            </tbody>\
+          </table>\
         </div>\
       </div>\
       <div class="help-block">\
         <h3>词组规则</h3>\
-        <p>首字首码 A，二字首码 B，三字首码 C，末字首码 Z</p>\
+        <p>首字首码 A，首字次码 a，二字首码 B，二字次码 b，三字首码 C，末字首码 Z，末字次码 z</p>\
         <div class="help-items">\
-          <div><code>AaZz</code> 二字词</div>\
-          <div><code>ABZz</code> 三字词</div>\
-          <div><code>ABCZ</code> 多字词</div>\
+          <table class="words-table">\
+            <tbody>\
+              <tr>\
+                <td><code>AaBb</code></td>\
+                <td>二字词</td>\
+              </tr>\
+              <tr>\
+                <td><code>ABZz</code></td>\
+                <td>三字词</td>\
+              </tr>\
+              <tr>\
+                <td><code>ABCZ</code></td>\
+                <td>多字词</td>\
+              </tr>\
+            </tbody>\
+          </table>\
         </div>\
       </div>\
       <div class="help-hint">💡 点击上方分类开始练习</div>\
