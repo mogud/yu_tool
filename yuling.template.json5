@@ -1,7 +1,7 @@
 {
   name: "灵明字根简码练习",
   version: "无",
-  sversion: "2026.1.29-1",
+  sversion: "2026.1.30-2",
   font: {
     name: "Yuniversus",
     file: "Yuniversus.woff",
