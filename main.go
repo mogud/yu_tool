@@ -18,18 +18,20 @@ func main() {
 
 	var sourceDir string
 	var targetDir string
+	var updateFlag bool
 
 	var exportCmd = &cobra.Command{
 		Use:   "export",
 		Short: "导出宇浩输入法的字根、简码",
 		Run: func(cmd *cobra.Command, args []string) {
-			cobra.CheckErr(export(sourceDir, targetDir))
+			cobra.CheckErr(export(sourceDir, targetDir, updateFlag))
 		},
 	}
 
 	exportCmd.Flags().StringVarP(&sourceDir, "source", "s", "", "宇浩发布的 zip 文件路径")
 	_ = exportCmd.MarkFlagRequired("source")
 	exportCmd.Flags().StringVarP(&targetDir, "target", "t", "./export", "导出路径")
+	exportCmd.Flags().BoolVarP(&updateFlag, "update", "u", false, "更新原始模板文件的 sversion")
 
 	cmd.AddCommand(exportCmd)
 

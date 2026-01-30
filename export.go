@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -70,9 +71,10 @@ type ExportConfig struct {
 	Version    string
 	YuhaoPath  string
 	TargetPath string
+	Update     bool
 }
 
-func export(src, tar string) error {
+func export(src, tar string, update bool) error {
 	// Validate src is a zip file
 	if !strings.HasSuffix(strings.ToLower(src), ".zip") {
 		return fmt.Errorf("source must be a zip file, got: %s", src)
@@ -107,6 +109,7 @@ func export(src, tar string) error {
 		Version:    version,
 		YuhaoPath:  filepath.Join(tempDir, "schema/yuhao"),
 		TargetPath: tar,
+		Update:     update,
 	}
 
 	// Ensure target directory exists
@@ -708,6 +711,13 @@ func exportTemplateFromFile(templatePath, outputName, methodNameSuffix string, c
 	}
 	tmplMeta.SVersion = newVersion
 
+	// Update original template file if --update flag is set
+	if config.Update {
+		if err := updateTemplateSVersion(templatePath, newVersion); err != nil {
+			return fmt.Errorf("failed to update template file: %w", err)
+		}
+	}
+
 	// Generate Items from ItemsMeta
 	items, err := generateItemsFromMeta(tmplMeta.ItemsMeta, config.TargetPath, methodNameSuffix)
 	if err != nil {
@@ -777,6 +787,25 @@ func updateSVersion(current string) (string, error) {
 	}
 
 	return fmt.Sprintf("%s-%d", currentDate, seq), nil
+}
+
+// updateTemplateSVersion updates the sversion in the original template JSON5 file
+func updateTemplateSVersion(templatePath, newVersion string) error {
+	content, err := os.ReadFile(templatePath)
+	if err != nil {
+		return fmt.Errorf("failed to read template file: %w", err)
+	}
+
+	// Replace sversion value using regex
+	// Match patterns like: sversion: "2026.1.29-1" or sversion:'2026.1.29-1'
+	sversionRegex := regexp.MustCompile(`sversion\s*:\s*["'][^"']*["']`)
+	newContent := sversionRegex.ReplaceAllString(string(content), fmt.Sprintf(`sversion: "%s"`, newVersion))
+
+	if err := os.WriteFile(templatePath, []byte(newContent), 0644); err != nil {
+		return fmt.Errorf("failed to write template file: %w", err)
+	}
+
+	return nil
 }
 
 func copyFile(src, dst string) error {
