@@ -19,9 +19,22 @@ for zip_file in ./inputs/*.zip; do
     if [ -f "$zip_file" ]; then
         echo "Processing: $zip_file"
 
-        go run ./main.go ./export.go export -s "$zip_file" -t ./gen -u
+        # 根据 zip 文件名确定 CSV 文件
+        zip_name=$(basename "$zip_file")
+        if [[ "$zip_name" == 靈明* ]]; then
+            csv_file="./inputs/zigen-ling.csv"
+        elif [[ "$zip_name" == 卿雲* ]]; then
+            csv_file="./inputs/zigen-joy.csv"
+        elif [[ "$zip_name" == 日月* ]]; then
+            csv_file="./inputs/zigen-ming.csv"
+        else
+            echo "Unknown zip file pattern: $zip_name"
+            continue
+        fi
 
-        cp ./gen/*.json5 ./publish/
+        go run ./main.go ./export.go export -s "$zip_file" -r "$csv_file" -t ./export -u
+
+        cp ./export/*.json5 ./publish/
     fi
 done
 
