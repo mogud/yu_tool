@@ -127,7 +127,6 @@
                     <input type="file" id="configFile" accept=".json5">
                     <label for="configFile" class="file-label">选择文件</label>
                 </div>
-                <p class="launch-hint">支持 .json5 配置文件</p>
             </div>`
             document.getElementById('configFile').addEventListener('change', onConfigSelected)
         }
@@ -886,12 +885,6 @@
 
         .file-label:active {
             transform: translateY(0);
-        }
-
-        .launch-hint {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-top: 16px;
         }
     </style>
 </head>
