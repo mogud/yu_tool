@@ -17,9 +17,9 @@ mkdir -p ./inputs
 # 下载 CSV 文件
 echo "Downloading CSV files..."
 csv_urls=(
-    "http://shurufa.app/zigen-ling.csv"
-    "http://shurufa.app/zigen-ming.csv"
-    "http://shurufa.app/zigen-joy.csv"
+    "https://shurufa.app/zigen-ling.csv"
+    "https://shurufa.app/zigen-ming.csv"
+    "https://shurufa.app/zigen-joy.csv"
 )
 csv_names=("zigen-ling.csv" "zigen-ming.csv" "zigen-joy.csv")
 download_success=true
@@ -28,7 +28,7 @@ for i in "${!csv_urls[@]}"; do
     url="${csv_urls[$i]}"
     name="${csv_names[$i]}"
     echo "Downloading $url -> ./inputs/$name"
-    if ! curl -sSL "$url" -o "./inputs/$name"; then
+    if ! curl -o "./inputs/$name" "$url"; then
         echo "Failed to download $url"
         download_success=false
         break
@@ -85,6 +85,9 @@ echo "App version: $appVersion"
 
 # 复制并重命名 HTML 文件
 cp "输入法练习工具.html" "./publish/输入法练习工具_${appVersion}.html"
+
+# 复制字体文件
+cp "Yuniversus.ttf" "./publish/"
 
 # 如果指定了 -zip 参数，打包 publish 目录
 if [ "$DO_ZIP" = true ]; then
