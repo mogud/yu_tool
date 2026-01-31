@@ -62,6 +62,7 @@ type TemplateItemsMeta struct {
 type TemplateFont struct {
 	Name   string `json:"name" mapstructure:"name"`
 	File   string `json:"file" mapstructure:"file"`
+	Type   string `json:"type" mapstructure:"type"`
 	Base64 string `json:"base64" mapstructure:"base64"`
 }
 

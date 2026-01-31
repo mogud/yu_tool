@@ -6,6 +6,7 @@
     {
       name: "Yuniversus",
       file: "Yuniversus.woff",
+      type: "woff",
       base64: ""
     }
   ],
