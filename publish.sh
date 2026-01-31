@@ -18,7 +18,7 @@ for zip_file in ./inputs/*.zip; do
     if [ -f "$zip_file" ]; then
         echo "Processing: $zip_file"
 
-        go run ./main.go ./export.go export -s "$zip_file" -t ./gen
+        go run ./main.go ./export.go export -s "$zip_file" -t ./gen -u
 
         cp ./gen/*.json5 ./publish/
     fi
