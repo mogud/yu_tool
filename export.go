@@ -79,11 +79,12 @@ type ExportConfig struct {
 	MethodName string
 	Version    string
 	YuhaoPath  string
+	RootPath   string
 	TargetPath string
 	Update     bool
 }
 
-func export(src, tar string, update bool) error {
+func export(src, tar, root string, update bool) error {
 	// Validate src is a zip file
 	if !strings.HasSuffix(strings.ToLower(src), ".zip") {
 		return fmt.Errorf("source must be a zip file, got: %s", src)
@@ -117,6 +118,7 @@ func export(src, tar string, update bool) error {
 		MethodName: baseMethodName,
 		Version:    version,
 		YuhaoPath:  filepath.Join(tempDir, "schema/yuhao"),
+		RootPath:   root,
 		TargetPath: tar,
 		Update:     update,
 	}
@@ -283,14 +285,6 @@ func writeCodeWordPairs(path string, entries []DictEntry) error {
 }
 
 func exportRoot(config ExportConfig) error {
-	dictPath := filepath.Join(config.YuhaoPath, config.MethodName+".roots.dict.yaml")
-
-	file, err := os.Open(dictPath)
-	if err != nil {
-		return fmt.Errorf("failed to open '%s': %w", dictPath, err)
-	}
-	defer file.Close()
-
 	outputPath := filepath.Join(config.TargetPath, "roots.txt")
 	outputFile, err := os.Create(outputPath)
 	if err != nil {
@@ -298,51 +292,54 @@ func exportRoot(config ExportConfig) error {
 	}
 	defer outputFile.Close()
 
-	// Build keyCode -> words map
-	wordMap := make(map[string][]string)
+	entries, err := readRootsFromCSV(config.RootPath)
+	if err != nil {
+		return fmt.Errorf("failed to read roots from CSV: %w", err)
+	}
+
+	// 写入排序后的条目
+	sortByCode(entries)
+	for _, entry := range entries {
+		if _, err := outputFile.WriteString(entry[1] + "\t" + entry[0] + "\n"); err != nil {
+			return fmt.Errorf("failed to write to '%s': %w", outputPath, err)
+		}
+	}
+
+	return nil
+}
+
+// readRootsFromCSV 从 CSV 文件读取字根，每行第一列是编码，第二列是字根
+func readRootsFromCSV(csvPath string) ([]DictEntry, error) {
+	file, err := os.Open(csvPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open '%s': %w", csvPath, err)
+	}
+	defer file.Close()
+
+	var entries []DictEntry
 	scanner := bufio.NewScanner(file)
+	isFirstLine := true
 	for scanner.Scan() {
 		line := scanner.Text()
-		if !strings.HasPrefix(line, "+") {
+		// 跳过头部
+		if isFirstLine {
+			isFirstLine = false
 			continue
 		}
-		fields := strings.Fields(line)
-		if len(fields) < 4 {
+		fields := strings.Split(line, ",")
+		if len(fields) < 2 {
 			continue
 		}
-		code := fields[1]
-		words := fields[3]
-		key := fields[len(fields)-1][3:]
-		keyCode := key + code
-
-		for _, word := range []rune(words) {
-			wordMap[keyCode] = append(wordMap[keyCode], string(word))
+		word := strings.TrimSpace(fields[0])
+		code := strings.TrimSpace(fields[1])
+		if code != "" && word != "" {
+			entries = append(entries, DictEntry{code, word})
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("error reading dictionary: %w", err)
+		return nil, fmt.Errorf("error reading CSV: %w", err)
 	}
-
-	// Write sorted entries
-	var keyCodes []string
-	for k := range wordMap {
-		keyCodes = append(keyCodes, k)
-	}
-	sort.SliceStable(keyCodes, func(i, j int) bool {
-		if len(keyCodes[i]) != len(keyCodes[j]) {
-			return len(keyCodes[i]) < len(keyCodes[j])
-		}
-		return keyCodes[i] < keyCodes[j]
-	})
-
-	for _, keyCode := range keyCodes {
-		for _, word := range wordMap[keyCode] {
-			if _, err := outputFile.WriteString(word + "\t" + keyCode + "\n"); err != nil {
-				return fmt.Errorf("failed to write to '%s': %w", outputPath, err)
-			}
-		}
-	}
-	return nil
+	return entries, nil
 }
 
 func exportQuickWords(config ExportConfig) error {

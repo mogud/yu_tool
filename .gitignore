@@ -35,6 +35,6 @@ go.work.sum
 .vscode/
 
 # Generated files
-/gen
+/export
 /publish
 /inputs
