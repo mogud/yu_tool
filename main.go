@@ -31,7 +31,7 @@ func main() {
 	exportCmd.Flags().StringVarP(&sourceDir, "source", "s", "", "宇浩发布的 zip 文件路径")
 	_ = exportCmd.MarkFlagRequired("source")
 	exportCmd.Flags().StringVarP(&targetDir, "target", "t", "./export", "导出路径")
-	exportCmd.Flags().BoolVarP(&updateFlag, "update", "u", false, "更新原始模板文件的 sversion")
+	exportCmd.Flags().BoolVarP(&updateFlag, "update", "u", false, "更新原始模板文件的 configversion")
 
 	cmd.AddCommand(exportCmd)
 

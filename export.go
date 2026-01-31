@@ -20,26 +20,26 @@ import (
 
 // TemplateMeta represents the full structure of a template.json5 file (includes ItemsMeta for generation)
 type TemplateMeta struct {
-	Name        string              `json:"name" mapstructure:"name"`
-	Version     string              `json:"version" mapstructure:"version"`
-	SVersion    string              `json:"sversion" mapstructure:"sversion"`
-	Font        TemplateFont        `json:"font" mapstructure:"font"`
-	KeyBindinds []KeyBinding        `json:"key_bindings" mapstructure:"key_bindings"`
-	ItemsMeta   []TemplateItemsMeta `json:"items_meta" mapstructure:"items_meta"`
-	Tabs        []TemplateTab       `json:"tabs" mapstructure:"tabs"`
-	Help        string              `json:"help" mapstructure:"help"`
+	Name          string              `json:"name" mapstructure:"name"`
+	Version       string              `json:"version" mapstructure:"version"`
+	ConfigVersion string              `json:"config_version" mapstructure:"config_version"`
+	Font          TemplateFont        `json:"font" mapstructure:"font"`
+	KeyBindings   []KeyBinding        `json:"key_bindings" mapstructure:"key_bindings"`
+	ItemsMeta     []TemplateItemsMeta `json:"items_meta" mapstructure:"items_meta"`
+	Tabs          []TemplateTab       `json:"tabs" mapstructure:"tabs"`
+	Help          string              `json:"help" mapstructure:"help"`
 }
 
 // Template represents the structure for export (same as TemplateMeta but without ItemsMeta)
 type Template struct {
-	Name        string                `json:"name"`
-	Version     string                `json:"version"`
-	SVersion    string                `json:"sversion"`
-	Font        TemplateFont          `json:"font"`
-	KeyBindinds []KeyBinding          `json:"key_bindings" mapstructure:"key_bindings"`
-	Items       []map[string][]string `json:"items"`
-	Tabs        []TemplateTab         `json:"tabs"`
-	Help        string                `json:"help"`
+	Name          string                `json:"name"`
+	Version       string                `json:"version"`
+	ConfigVersion string                `json:"config_version"`
+	Font          TemplateFont          `json:"font"`
+	KeyBindings   []KeyBinding          `json:"key_bindings"`
+	Items         []map[string][]string `json:"items"`
+	Tabs          []TemplateTab         `json:"tabs"`
+	Help          string                `json:"help"`
 }
 
 // DictEntry represents a code-word pair [code, word]
@@ -526,7 +526,7 @@ func extractFile(file *zip.File, destDir string) error {
 	return err
 }
 
-// exportTemplate reads methodName.template.json5, updates sversion, and writes to target directory
+// exportTemplate reads methodName.template.json5, updates configversion, and writes to target directory
 func exportTemplate(config ExportConfig) error {
 	// Register JSON5 driver
 	gkconfig.AddDriver(json5.Driver)
@@ -699,7 +699,7 @@ func generateItemsFromMeta(itemsMeta []TemplateItemsMeta, targetPath, methodName
 	return items, nil
 }
 
-// exportTemplateFromFile reads a template file, updates sversion, and writes to target
+// exportTemplateFromFile reads a template file, updates configversion, and writes to target
 func exportTemplateFromFile(templatePath, outputName, methodNameSuffix string, config ExportConfig) error {
 	// Read and parse JSON5 template using gookit/config
 	var tmplMeta TemplateMeta
@@ -711,16 +711,16 @@ func exportTemplateFromFile(templatePath, outputName, methodNameSuffix string, c
 		return fmt.Errorf("failed to decode template file: %w", err)
 	}
 
-	// Update sversion
-	newVersion, err := updateSVersion(tmplMeta.SVersion)
+	// Update configversion
+	newVersion, err := updateConfigVersion(tmplMeta.ConfigVersion)
 	if err != nil {
-		return fmt.Errorf("failed to update sversion: %w", err)
+		return fmt.Errorf("failed to update configversion: %w", err)
 	}
-	tmplMeta.SVersion = newVersion
+	tmplMeta.ConfigVersion = newVersion
 
 	// Update original template file if --update flag is set
 	if config.Update {
-		if err := updateTemplateSVersion(templatePath, newVersion); err != nil {
+		if err := updateTemplateConfigVersion(templatePath, newVersion); err != nil {
 			return fmt.Errorf("failed to update template file: %w", err)
 		}
 	}
@@ -733,13 +733,14 @@ func exportTemplateFromFile(templatePath, outputName, methodNameSuffix string, c
 
 	// Convert to Template for JSON output (ItemsMeta will be excluded)
 	tmpl := Template{
-		Name:     tmplMeta.Name,
-		Version:  config.Version,
-		SVersion: tmplMeta.SVersion,
-		Font:     tmplMeta.Font,
-		Items:    items,
-		Tabs:     tmplMeta.Tabs,
-		Help:     tmplMeta.Help,
+		Name:          tmplMeta.Name,
+		Version:       config.Version,
+		ConfigVersion: tmplMeta.ConfigVersion,
+		Font:          tmplMeta.Font,
+		KeyBindings:   tmplMeta.KeyBindings,
+		Items:         items,
+		Tabs:          tmplMeta.Tabs,
+		Help:          tmplMeta.Help,
 	}
 
 	// Use template's Version if config.Version is empty
@@ -765,10 +766,10 @@ func exportTemplateFromFile(templatePath, outputName, methodNameSuffix string, c
 	return nil
 }
 
-// updateSVersion updates the sversion based on current date
-// sversion format: "YYYY.M.D-seq" (e.g., "2026.1.29-1")
-func updateSVersion(current string) (string, error) {
-	// Parse current sversion
+// updateConfigVersion updates the configversion based on current date
+// configversion format: "YYYY.M.D-seq" (e.g., "2026.1.29-1")
+func updateConfigVersion(current string) (string, error) {
+	// Parse current configversion
 	var datePart string
 	var seq int
 	parts := strings.Split(current, "-")
@@ -796,17 +797,17 @@ func updateSVersion(current string) (string, error) {
 	return fmt.Sprintf("%s-%d", currentDate, seq), nil
 }
 
-// updateTemplateSVersion updates the sversion in the original template JSON5 file
-func updateTemplateSVersion(templatePath, newVersion string) error {
+// updateTemplateConfigVersion updates the configversion in the original template JSON5 file
+func updateTemplateConfigVersion(templatePath, newVersion string) error {
 	content, err := os.ReadFile(templatePath)
 	if err != nil {
 		return fmt.Errorf("failed to read template file: %w", err)
 	}
 
-	// Replace sversion value using regex
-	// Match patterns like: sversion: "2026.1.29-1" or sversion:'2026.1.29-1'
-	sversionRegex := regexp.MustCompile(`sversion\s*:\s*["'][^"']*["']`)
-	newContent := sversionRegex.ReplaceAllString(string(content), fmt.Sprintf(`sversion: "%s"`, newVersion))
+	// Replace config_version value using regex
+	// Match patterns like: config_version: "2026.1.29-1" or config_version:'2026.1.29-1'
+	configversionRegex := regexp.MustCompile(`config_version\s*:\s*["'][^"']*["']`)
+	newContent := configversionRegex.ReplaceAllString(string(content), fmt.Sprintf(`config_version: "%s"`, newVersion))
 
 	if err := os.WriteFile(templatePath, []byte(newContent), 0644); err != nil {
 		return fmt.Errorf("failed to write template file: %w", err)
