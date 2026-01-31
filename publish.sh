@@ -107,7 +107,7 @@ cp "Yuniversus.ttf" "./publish/"
 # 如果指定了 -zip 参数，打包 publish 目录
 if [ "$DO_ZIP" = true ]; then
     date_str=$(date +%Y%m%d)
-    base_name="输入法工具_${appVersion}_${date_str}"
+    base_name="输入法练习工具_${appVersion}_${date_str}"
     zip_name="${base_name}.zip"
 
     # 查找所有符合格式的现有 zip 文件
@@ -116,17 +116,17 @@ if [ "$DO_ZIP" = true ]; then
     best_date=""
     best_build=""
 
-    for f in 输入法工具_*.zip; do
+    for f in 输入法练习工具_*.zip; do
         if [ -f "$f" ]; then
             filename=$(basename "$f" .zip)
 
-            # 解析: 输入法工具_{version}_{date}_{build}.zip
-            version=$(echo "$filename" | sed -E 's/输入法工具_([0-9]+\.[0-9]+\.[0-9]+)_[0-9]{8}.*/\1/')
-            date_part=$(echo "$filename" | sed -E 's/输入法工具_[0-9]+\.[0-9]+\.[0-9]+_([0-9]{8}).*/\1/')
+            # 解析: 输入法练习工具_{version}_{date}_{build}.zip
+            version=$(echo "$filename" | sed -E 's/输入法练习工具_([0-9]+\.[0-9]+\.[0-9]+)_[0-9]{8}.*/\1/')
+            date_part=$(echo "$filename" | sed -E 's/输入法练习工具_[0-9]+\.[0-9]+\.[0-9]+_([0-9]{8}).*/\1/')
 
             # 提取 build 号（如果有）
-            if echo "$filename" | grep -qE '输入法工具_[0-9]+\.[0-9]+\.[0-9]+_[0-9]{8}_[0-9]+$'; then
-                build=$(echo "$filename" | sed -E 's/输入法工具_[0-9]+\.[0-9]+\.[0-9]+_[0-9]{8}_([0-9]+)/\1/')
+            if echo "$filename" | grep -qE '输入法练习工具_[0-9]+\.[0-9]+\.[0-9]+_[0-9]{8}_[0-9]+$'; then
+                build=$(echo "$filename" | sed -E 's/输入法练习工具_[0-9]+\.[0-9]+\.[0-9]+_[0-9]{8}_([0-9]+)/\1/')
             else
                 build="0"
             fi
