@@ -4,11 +4,14 @@ set -e
 # 参数解析
 DO_ZIP=false
 DO_LOCAL=false
+DO_DEV=false
 for arg in "$@"; do
     if [ "$arg" = "-zip" ]; then
         DO_ZIP=true
     elif [ "$arg" = "-local" ]; then
         DO_LOCAL=true
+    elif [ "$arg" = "-dev" ]; then
+        DO_DEV=true
     fi
 done
 
@@ -74,7 +77,11 @@ for zip_file in ./inputs/*.zip; do
             continue
         fi
 
-        go run ./main.go ./export.go export -s "$zip_file" -r "$csv_file" -t ./export -u
+        if [ "$DO_DEV" = true ]; then
+            go run ./main.go ./export.go export -s "$zip_file" -r "$csv_file" -t ./export
+        else
+            go run ./main.go ./export.go export -s "$zip_file" -r "$csv_file" -t ./export -u
+        fi
 
         cp ./export/*.json5 ./publish/
     fi
