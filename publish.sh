@@ -37,13 +37,16 @@ done
 
 if [ "$download_success" = false ]; then
     echo "Failed to download some CSV files, rollback..."
+
     rm -f ./inputs/*.csv
     cp ./assets/zigen-*.csv ./inputs/
+
 else
+    echo "All CSV files downloaded successfully"
+
     cp ./inputs/zigen-*.csv ./assets/
 fi
 
-echo "All CSV files downloaded successfully"
 
 # 遍历 inputs 目录下的所有 zip 文件
 for zip_file in ./inputs/*.zip; do
