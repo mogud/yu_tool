@@ -9,8 +9,9 @@ for arg in "$@"; do
     fi
 done
 
-# 创建 publish 目录
+# 创建 publish 目录并清空
 mkdir -p ./publish
+rm -rf ./publish/*
 mkdir -p ./inputs
 
 # 遍历 inputs 目录下的所有 zip 文件
