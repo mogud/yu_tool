@@ -83,7 +83,7 @@ for zip_file in ./inputs/*.zip; do
             go run ./main.go ./export.go export -s "$zip_file" -r "$csv_file" -t ./export -u
         fi
 
-        cp ./export/*.json5 ./publish/
+        cp ./export/*.toml ./publish/
     fi
 done
 

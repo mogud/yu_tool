@@ -3,75 +3,72 @@ package main
 import (
 	"archive/zip"
 	"bufio"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
 
-	gkconfig "github.com/gookit/config/v2"
-	"github.com/gookit/config/v2/json5"
+	"github.com/pelletier/go-toml/v2"
 )
 
-// TemplateMeta represents the full structure of a template.json5 file (includes ItemsMeta for generation)
+// TemplateMeta represents the full structure of a template.toml file (includes ItemsMeta for generation)
 type TemplateMeta struct {
-	Name          string              `json:"name" mapstructure:"name"`
-	Version       string              `json:"version" mapstructure:"version"`
-	ConfigVersion string              `json:"config_version" mapstructure:"config_version"`
-	Fonts         []TemplateFont      `json:"fonts" mapstructure:"fonts"`
-	KeyBindings   []KeyBinding        `json:"key_bindings" mapstructure:"key_bindings"`
-	ItemsMeta     []TemplateItemsMeta `json:"items_meta" mapstructure:"items_meta"`
-	Tabs          []TemplateTab       `json:"tabs" mapstructure:"tabs"`
-	Help          string              `json:"help" mapstructure:"help"`
+	Name          string              `toml:"name"`
+	Version       string              `toml:"version"`
+	ConfigVersion string              `toml:"config_version"`
+	Fonts         []TemplateFont      `toml:"fonts"`
+	KeyBindings   []KeyBinding        `toml:"key_bindings"`
+	ItemsMeta     []TemplateItemsMeta `toml:"items_meta"`
+	Tabs          []TemplateTab       `toml:"tabs"`
+	Help          string              `toml:"help"`
 }
 
 // Template represents the structure for export (same as TemplateMeta but without ItemsMeta)
 type Template struct {
-	Name          string                `json:"name"`
-	Version       string                `json:"version"`
-	ConfigVersion string                `json:"config_version"`
-	Fonts         []TemplateFont        `json:"fonts"`
-	KeyBindings   []KeyBinding          `json:"key_bindings"`
-	Items         []map[string][]string `json:"items"`
-	Tabs          []TemplateTab         `json:"tabs"`
-	Help          string                `json:"help"`
+	Name          string                `toml:"name"`
+	Version       string                `toml:"version"`
+	ConfigVersion string                `toml:"config_version"`
+	Fonts         []TemplateFont        `toml:"fonts"`
+	KeyBindings   []KeyBinding          `toml:"key_bindings"`
+	Items         []map[string][]string `toml:"items"`
+	Tabs          []TemplateTab         `toml:"tabs"`
+	Help          string                `toml:"help"`
 }
 
 // DictEntry represents a code-word pair [code, word]
 type DictEntry [2]string
 
 type KeyBinding struct {
-	Key     string `json:"key" mapstructure:"key"`
-	Command string `json:"command" mapstructure:"command"`
+	Key     string `toml:"key"`
+	Command string `toml:"command"`
 }
 
 type TemplateItemsMeta struct {
-	Category     []string `json:"category" mapstructure:"category"`
-	Prefix       []string `json:"prefix" mapstructure:"prefix"`
-	Suffix       []string `json:"suffix" mapstructure:"suffix"`
-	MinLength    int      `json:"min_length" mapstructure:"min_length"`
-	MaxLength    int      `json:"max_length" mapstructure:"max_length"`
-	AppendSuffix string   `json:"append_suffix" mapstructure:"append_suffix"`
+	Category     []string `toml:"category"`
+	Prefix       []string `toml:"prefix"`
+	Suffix       []string `toml:"suffix"`
+	MinLength    int      `toml:"min_length"`
+	MaxLength    int      `toml:"max_length"`
+	AppendSuffix string   `toml:"append_suffix"`
 }
 
 type TemplateFont struct {
-	Name   string `json:"name" mapstructure:"name"`
-	File   string `json:"file" mapstructure:"file"`
-	Type   string `json:"type" mapstructure:"type"`
-	Base64 string `json:"base64" mapstructure:"base64"`
+	Name   string `toml:"name"`
+	File   string `toml:"file"`
+	Type   string `toml:"type"`
+	Base64 string `toml:"base64"`
 }
 
 // TemplateTab represents a tab in the template
 type TemplateTab struct {
-	Label string `json:"label" mapstructure:"label"`
-	Type  string `json:"type" mapstructure:"type"`
-	Beg   int    `json:"beg" mapstructure:"beg"`
-	End   int    `json:"end" mapstructure:"end"`
+	Label string `toml:"label"`
+	Type  string `toml:"type"`
+	Beg   int    `toml:"beg"`
+	End   int    `toml:"end"`
 }
 
 // ExportConfig contains configuration for export operations
@@ -526,28 +523,25 @@ func extractFile(file *zip.File, destDir string) error {
 	return err
 }
 
-// exportTemplate reads methodName.template.json5, updates configversion, and writes to target directory
+// exportTemplate reads methodName.template.toml, updates configversion, and writes to target directory
 func exportTemplate(config ExportConfig) error {
-	// Register JSON5 driver
-	gkconfig.AddDriver(json5.Driver)
-
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
 	}
 
 	// Export main template file (no suffix)
-	mainTemplatePath := filepath.Join(cwd, config.MethodName+".template.json5")
+	mainTemplatePath := filepath.Join(cwd, config.MethodName+".template.toml")
 	if _, err := os.Stat(mainTemplatePath); err == nil {
-		if err := exportTemplateFromFile(mainTemplatePath, config.MethodName+".json5", "", config); err != nil {
+		if err := exportTemplateFromFile(mainTemplatePath, config.MethodName+".toml", "", config); err != nil {
 			return fmt.Errorf("failed to export main template: %w", err)
 		}
 	}
 
 	// Find and export suffixed template files
-	suffixedTemplates := findSuffixedTemplates(cwd, config.MethodName, "template.json5")
+	suffixedTemplates := findSuffixedTemplates(cwd, config.MethodName, "template.toml")
 	for suffix, filePath := range suffixedTemplates {
-		outputName := config.MethodName + "_" + suffix + ".json5"
+		outputName := config.MethodName + "_" + suffix + ".toml"
 		if err := exportTemplateFromFile(filePath, outputName, suffix, config); err != nil {
 			return fmt.Errorf("failed to export template '%s': %w", outputName, err)
 		}
@@ -701,14 +695,15 @@ func generateItemsFromMeta(itemsMeta []TemplateItemsMeta, targetPath, methodName
 
 // exportTemplateFromFile reads a template file, updates configversion, and writes to target
 func exportTemplateFromFile(templatePath, outputName, methodNameSuffix string, config ExportConfig) error {
-	// Read and parse JSON5 template using gookit/config
-	var tmplMeta TemplateMeta
-	err := gkconfig.LoadFiles(templatePath)
+	// Read and parse TOML template
+	content, err := os.ReadFile(templatePath)
 	if err != nil {
-		return fmt.Errorf("failed to parse template file: %w", err)
+		return fmt.Errorf("failed to read template file: %w", err)
 	}
-	if err := gkconfig.Decode(&tmplMeta); err != nil {
-		return fmt.Errorf("failed to decode template file: %w", err)
+
+	var tmplMeta TemplateMeta
+	if err := toml.Unmarshal(content, &tmplMeta); err != nil {
+		return fmt.Errorf("failed to parse template file: %w", err)
 	}
 
 	// Update configversion
@@ -731,7 +726,7 @@ func exportTemplateFromFile(templatePath, outputName, methodNameSuffix string, c
 		return fmt.Errorf("failed to generate items: %w", err)
 	}
 
-	// Convert to Template for JSON output (ItemsMeta will be excluded)
+	// Convert to Template for output (ItemsMeta will be excluded)
 	tmpl := Template{
 		Name:          tmplMeta.Name,
 		Version:       config.Version,
@@ -748,18 +743,18 @@ func exportTemplateFromFile(templatePath, outputName, methodNameSuffix string, c
 		tmpl.Version = tmplMeta.Version
 	}
 
-	// Write to output file with proper formatting
-	baseName := strings.TrimSuffix(outputName, ".json5")
+	// Write to output TOML file with proper formatting
+	baseName := strings.TrimSuffix(outputName, ".toml")
 	if config.Version != "" {
-		outputName = baseName + "_" + config.Version + ".json5"
+		outputName = baseName + "_" + config.Version + ".toml"
 	}
-	outputPath := filepath.Join(config.TargetPath, outputName)
-	outputData, err := json.MarshalIndent(tmpl, "", "  ")
+	outputTomlPath := filepath.Join(config.TargetPath, outputName)
+	outputData, err := toml.Marshal(tmpl)
 	if err != nil {
 		return fmt.Errorf("failed to marshal template: %w", err)
 	}
 
-	if err := os.WriteFile(outputPath, outputData, 0644); err != nil {
+	if err := os.WriteFile(outputTomlPath, outputData, 0644); err != nil {
 		return fmt.Errorf("failed to write output file: %w", err)
 	}
 
@@ -797,19 +792,29 @@ func updateConfigVersion(current string) (string, error) {
 	return fmt.Sprintf("%s-%d", currentDate, seq), nil
 }
 
-// updateTemplateConfigVersion updates the configversion in the original template JSON5 file
+// updateTemplateConfigVersion updates the configversion in the original template TOML file
 func updateTemplateConfigVersion(templatePath, newVersion string) error {
 	content, err := os.ReadFile(templatePath)
 	if err != nil {
 		return fmt.Errorf("failed to read template file: %w", err)
 	}
 
-	// Replace config_version value using regex
-	// Match patterns like: config_version: "2026.1.29-1" or config_version:'2026.1.29-1'
-	configversionRegex := regexp.MustCompile(`config_version\s*:\s*["'][^"']*["']`)
-	newContent := configversionRegex.ReplaceAllString(string(content), fmt.Sprintf(`config_version: "%s"`, newVersion))
+	// Parse the TOML content
+	var tmplMeta TemplateMeta
+	if err := toml.Unmarshal(content, &tmplMeta); err != nil {
+		return fmt.Errorf("failed to parse template file: %w", err)
+	}
 
-	if err := os.WriteFile(templatePath, []byte(newContent), 0644); err != nil {
+	// Update ConfigVersion
+	tmplMeta.ConfigVersion = newVersion
+
+	// Marshal back to TOML
+	outputData, err := toml.Marshal(tmplMeta)
+	if err != nil {
+		return fmt.Errorf("failed to marshal template: %w", err)
+	}
+
+	if err := os.WriteFile(templatePath, outputData, 0644); err != nil {
 		return fmt.Errorf("failed to write template file: %w", err)
 	}
 
