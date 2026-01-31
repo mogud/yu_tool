@@ -7,7 +7,7 @@
     file: "Yuniversus.woff",
   },
   key_bindings: [
-    { key: "ctrl+r", command: "tab_reload" },
+    { key: "alt+r", command: "tab_reload" },
   ],
   items_meta: [
     {

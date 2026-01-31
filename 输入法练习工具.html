@@ -45,6 +45,7 @@
                 curInputMax = 0; curInputIndex = 0; curTab = 0
                 totalWords = []; totalIndex = 0
                 initTabs()
+                initKeyBindings()
                 displayHelp()
             } catch (err) {
                 console.error('加载配置失败:', err, err.stack)
@@ -69,6 +70,43 @@
                     e.target.id !== 'oneTimeCount' &&
                     e.target.id !== 'totalCount') {
                     userInput.focus()
+                }
+            })
+        }
+
+        let compiledKeyBindings = []
+
+        const compileKeyBindings = () => {
+            compiledKeyBindings = []
+            if (!config.key_bindings || !Array.isArray(config.key_bindings)) return
+            for (const binding of config.key_bindings) {
+                const key = binding.key.toLowerCase().replace(/\s+/g, '')
+                const parts = key.split('+')
+                const modifiers = parts.filter(p => ['ctrl', 'alt', 'shift', 'meta'].includes(p))
+                const keyPart = parts.find(p => !['ctrl', 'alt', 'shift', 'meta'].includes(p))
+                compiledKeyBindings.push({ modifiers, keyPart, command: binding.command })
+            }
+        }
+
+        const initKeyBindings = () => {
+            compileKeyBindings()
+            document.addEventListener('keydown', (e) => {
+                for (const binding of compiledKeyBindings) {
+                    const ctrlMatch = binding.modifiers.includes('ctrl') ? e.ctrlKey : !e.ctrlKey
+                    const altMatch = binding.modifiers.includes('alt') ? e.altKey : !e.altKey
+                    const shiftMatch = binding.modifiers.includes('shift') ? e.shiftKey : !e.shiftKey
+                    const metaMatch = binding.modifiers.includes('meta') ? e.metaKey : !e.metaKey
+                    const keyMatch = e.key.toLowerCase() === binding.keyPart
+
+                    if (ctrlMatch && altMatch && shiftMatch && metaMatch && keyMatch) {
+                        e.preventDefault()
+                        switch (binding.command) {
+                            case 'tab_reload':
+                                startPractice(curTab)
+                                break
+                        }
+                        break
+                    }
                 }
             })
         }
