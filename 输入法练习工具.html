@@ -21,6 +21,7 @@
         let inputTimer = null
 
         let rawArea = null
+        let rawAreaFonts = null
         let userInput = null
         let speedLabel = null
         let progressLabel = null
@@ -252,7 +253,9 @@
             showTemplate("practice-template")
             initDomReferences()
             toggleInputArea(true)
-            Object.assign(rawArea.style, { fontSize: "40px", wordBreak: "keep-all" })
+            // Object.assign(rawArea.style, { fontSize: "40px", wordBreak: "keep-all" })
+
+            rawArea.style.fontFamily = rawAreaFonts
             userInput.removeAttribute("disabled")
             updatePlaceholder()
             userInput.focus({ preventScroll: true })
@@ -392,13 +395,12 @@
 
         // 字体加载功能
         const loadFonts = async () => {
-            if (!config.fonts || !Array.isArray(config.fonts) || config.fonts.length === 0) {
-                return
+            let configFontNames = []
+            if (config.fonts && Array.isArray(config.fonts) && config.fonts.length > 0) {
+                configFontNames = config.fonts.filter(f => f.name).map(f => f.name)
             }
 
             const loadedFontNames = []
-            const configFontNames = config.fonts.filter(f => f.name).map(f => f.name)
-
             for (let i = 0; i < config.fonts.length; i++) {
                 const font = config.fonts[i]
                 if (!font.name) continue
@@ -423,15 +425,17 @@
                 }
             }
 
-            if (loadedFontNames.length > 0) {
-                const cssFontFamily = getComputedStyle(document.documentElement).fontFamily
-                const fallbackFonts = cssFontFamily
-                    .split(',')
-                    .map(f => f.trim().replace(/^['"]|['"]$/g, ''))
-                    .filter(f => f && !configFontNames.includes(f))
-                    .join("', '")
+            const cssFontFamily = getComputedStyle(document.getElementById("font-container")).fontFamily
+            const fallbackFonts = cssFontFamily
+                .split(',')
+                .map(f => f.trim().replace(/^['"]|['"]$/g, ''))
+                .filter(f => f && !configFontNames.includes(f))
+                .join("', '")
 
-                document.documentElement.style.fontFamily = loadedFontNames.join("', '") + "', '" + fallbackFonts + "'"
+            if (configFontNames.length > 0) {
+                rawAreaFonts =  "'" + loadedFontNames.join("', '") + "', '" + fallbackFonts + "'"
+            } else {
+                rawAreaFonts = "'" + fallbackFonts + "'"
             }
         }
 
@@ -455,41 +459,31 @@
         // 从 base64 加载字体
         const loadFontFromBase64 = (fontName, base64, type) => {
             return new Promise((resolve) => {
-                try {
-                    const fontUrl = `data:font/${type};base64,${base64}`
-                    const fontFace = new FontFace(fontName, `url(${fontUrl})`)
+                const fontUrl = `data:font/${type};base64,${base64}`
+                const fontFace = new FontFace(fontName, `url(${fontUrl})`)
 
-                    fontFace.load().then((loadedFace) => {
-                        document.fonts.add(loadedFace)
-                        resolve(true)
-                    }).catch((err) => {
-                        console.error(`loadFontFromBase64 failed: ${fontName}`, err)
-                        resolve(false)
-                    })
-                } catch (err) {
+                fontFace.load().then((loadedFace) => {
+                    document.fonts.add(loadedFace)
+                    resolve(true)
+                }).catch((err) => {
                     console.error(`loadFontFromBase64 failed: ${fontName}`, err)
                     resolve(false)
-                }
+                })
             })
         }
 
         // 从本地文件加载字体
         const loadFontFromFile = (fontName, fileName) => {
             return new Promise((resolve) => {
-                try {
-                    const fontFace = new FontFace(fontName, `url(${fileName})`)
+                const fontFace = new FontFace(fontName, `url(${fileName})`)
 
-                    fontFace.load().then((loadedFace) => {
-                        document.fonts.add(loadedFace)
-                        resolve(true)
-                    }).catch((err) => {
-                        console.error(`loadFontFromFile failed: ${fileName}`, err)
-                        resolve(false)
-                    })
-                } catch (err) {
+                fontFace.load().then((loadedFace) => {
+                    document.fonts.add(loadedFace)
+                    resolve(true)
+                }).catch((err) => {
                     console.error(`loadFontFromFile failed: ${fileName}`, err)
                     resolve(false)
-                }
+                })
             })
         }
 
@@ -524,7 +518,6 @@
         }
 
         html {
-            font-family: 'Yuniversus', 'TH-Tshyn-P0', 'TH-Tshyn-P1', 'TH-Tshyn-P2', 'SimSun-ExtB', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: 16px;
             line-height: 1.6;
             color: var(--text-primary);
@@ -586,7 +579,6 @@
             color: var(--text-secondary);
             font-size: 0.875rem;
             font-weight: 600;
-            font-family: 'SF Mono', 'Consolas', monospace;
         }
 
         .version-divider {
@@ -831,8 +823,8 @@
             cursor: not-allowed;
         }
 
-        #rawArea {
-            font-family: 'Yuniversus', monospace;
+        #font-container {
+            font-family: '宋体', 'Yuniversus', 'TH-Tshyn-P0', 'TH-Tshyn-P1', 'TH-Tshyn-P2', 'SimSun-ExtB', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
         .help-block {
@@ -866,7 +858,6 @@
             color: var(--primary);
             padding: 4px 10px;
             border-radius: 6px;
-            font-family: 'Yuniversus', monospace;
             font-weight: 600;
         }
 
@@ -979,6 +970,7 @@
 </head>
 
 <body>
+    <div id="font-container"></div>
     <div class="app-container"></div>
     <template id="practice-template">
         <div class="card practice-card">
