@@ -1,12 +1,12 @@
 {
   name: "灵明字根简码练习",
   version: "无",
-  config_version: "2026.1.31-3",
+  config_version: "2026.1.31-4",
   fonts: [
     {
       name: "Yuniversus",
-      file: "Yuniversus.tiff",
-      type: "tiff",
+      file: "Yuniversus.ttf",
+      type: "ttf",
       base64: ""
     }
   ],
