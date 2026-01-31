@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -799,22 +800,11 @@ func updateTemplateConfigVersion(templatePath, newVersion string) error {
 		return fmt.Errorf("failed to read template file: %w", err)
 	}
 
-	// Parse the TOML content
-	var tmplMeta TemplateMeta
-	if err := toml.Unmarshal(content, &tmplMeta); err != nil {
-		return fmt.Errorf("failed to parse template file: %w", err)
-	}
+	// Replace config_version value using regex (TOML format)
+	configVersionRegex := regexp.MustCompile(`(?m)^config_version\s*=\s*["'].*["']`)
+	newContent := configVersionRegex.ReplaceAllString(string(content), fmt.Sprintf(`config_version = "%s"`, newVersion))
 
-	// Update ConfigVersion
-	tmplMeta.ConfigVersion = newVersion
-
-	// Marshal back to TOML
-	outputData, err := toml.Marshal(tmplMeta)
-	if err != nil {
-		return fmt.Errorf("failed to marshal template: %w", err)
-	}
-
-	if err := os.WriteFile(templatePath, outputData, 0644); err != nil {
+	if err := os.WriteFile(templatePath, []byte(newContent), 0644); err != nil {
 		return fmt.Errorf("failed to write template file: %w", err)
 	}
 
