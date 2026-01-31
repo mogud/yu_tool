@@ -18,18 +18,36 @@ import (
 	"github.com/gookit/config/v2/json5"
 )
 
+// TemplateMeta represents the full structure of a template.json5 file (includes ItemsMeta for generation)
+type TemplateMeta struct {
+	Name        string              `json:"name" mapstructure:"name"`
+	Version     string              `json:"version" mapstructure:"version"`
+	SVersion    string              `json:"sversion" mapstructure:"sversion"`
+	Font        TemplateFont        `json:"font" mapstructure:"font"`
+	KeyBindinds []KeyBinding        `json:"key_bindings" mapstructure:"key_bindings"`
+	ItemsMeta   []TemplateItemsMeta `json:"items_meta" mapstructure:"items_meta"`
+	Tabs        []TemplateTab       `json:"tabs" mapstructure:"tabs"`
+	Help        string              `json:"help" mapstructure:"help"`
+}
+
+// Template represents the structure for export (same as TemplateMeta but without ItemsMeta)
+type Template struct {
+	Name        string                `json:"name"`
+	Version     string                `json:"version"`
+	SVersion    string                `json:"sversion"`
+	Font        TemplateFont          `json:"font"`
+	KeyBindinds []KeyBinding          `json:"key_bindings" mapstructure:"key_bindings"`
+	Items       []map[string][]string `json:"items"`
+	Tabs        []TemplateTab         `json:"tabs"`
+	Help        string                `json:"help"`
+}
+
 // DictEntry represents a code-word pair [code, word]
 type DictEntry [2]string
 
-// TemplateMeta represents the full structure of a template.json5 file (includes ItemsMeta for generation)
-type TemplateMeta struct {
-	Name      string              `json:"name" mapstructure:"name"`
-	Version   string              `json:"version" mapstructure:"version"`
-	SVersion  string              `json:"sversion" mapstructure:"sversion"`
-	Font      TemplateFont        `json:"font" mapstructure:"font"`
-	ItemsMeta []TemplateItemsMeta `json:"items_meta" mapstructure:"items_meta"`
-	Tabs      []TemplateTab       `json:"tabs" mapstructure:"tabs"`
-	Help      string              `json:"help" mapstructure:"help"`
+type KeyBinding struct {
+	Key     string `json:"key" mapstructure:"key"`
+	Command string `json:"command" mapstructure:"command"`
 }
 
 type TemplateItemsMeta struct {
@@ -39,17 +57,6 @@ type TemplateItemsMeta struct {
 	MinLength    int      `json:"min_length" mapstructure:"min_length"`
 	MaxLength    int      `json:"max_length" mapstructure:"max_length"`
 	AppendSuffix string   `json:"append_suffix" mapstructure:"append_suffix"`
-}
-
-// Template represents the structure for export (same as TemplateMeta but without ItemsMeta)
-type Template struct {
-	Name     string                `json:"name"`
-	Version  string                `json:"version"`
-	SVersion string                `json:"sversion"`
-	Font     TemplateFont          `json:"font"`
-	Items    []map[string][]string `json:"items"`
-	Tabs     []TemplateTab         `json:"tabs"`
-	Help     string                `json:"help"`
 }
 
 type TemplateFont struct {
