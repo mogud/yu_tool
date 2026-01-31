@@ -51,7 +51,7 @@ if [ "$DO_ZIP" = true ]; then
         cd ./publish && zip -r "../$zip_name" . && cd ..
     fi
 
-    echo "Created: $zip_name"
+    echo "Done! Created: $zip_name"
+else
+    echo "Done! Files copied to ./publish"
 fi
-
-echo "Done! Files copied to ./publish"
