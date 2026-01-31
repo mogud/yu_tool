@@ -6,6 +6,7 @@
     {
       name: "Yuniversus",
       file: "Yuniversus.woff",
+      base64: ""
     }
   ],
   key_bindings: [

@@ -60,8 +60,9 @@ type TemplateItemsMeta struct {
 }
 
 type TemplateFont struct {
-	Name string `json:"name" mapstructure:"name"`
-	File string `json:"file" mapstructure:"file"`
+	Name   string `json:"name" mapstructure:"name"`
+	File   string `json:"file" mapstructure:"file"`
+	Base64 string `json:"base64" mapstructure:"base64"`
 }
 
 // TemplateTab represents a tab in the template
