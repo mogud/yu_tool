@@ -308,7 +308,7 @@ func exportRoot(config ExportConfig) error {
 	return nil
 }
 
-// readRootsFromCSV 从 CSV 文件读取字根，每行第一列是编码，第二列是字根
+// readRootsFromCSV 从 CSV 文件读取字根，每行第一列是字根，第二列是编码
 func readRootsFromCSV(csvPath string) ([]DictEntry, error) {
 	file, err := os.Open(csvPath)
 	if err != nil {
@@ -330,8 +330,9 @@ func readRootsFromCSV(csvPath string) ([]DictEntry, error) {
 		if len(fields) < 2 {
 			continue
 		}
+		// CSV 格式: font,code,pinyin (第一列是字根，第二列是编码)
 		word := strings.TrimSpace(fields[0])
-		code := strings.TrimSpace(fields[1])
+		code := strings.ToLower(strings.TrimSpace(fields[1]))
 		if code != "" && word != "" {
 			entries = append(entries, DictEntry{code, word})
 		}

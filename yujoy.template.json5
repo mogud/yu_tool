@@ -1,7 +1,7 @@
 {
   name: "卿云字根简码练习",
   version: "无",
-  config_version: "2026.1.31-2",
+  config_version: "2026.1.31-3",
   fonts: [
     {
       name: "Yuniversus",
@@ -20,7 +20,7 @@
       suffix: [],
       min_length: 2,
       max_length: 2,
-      with_suffix: ""
+      append_suffix: ""
     },
     {
       category: ["roots"],
@@ -28,7 +28,7 @@
       suffix: [],
       min_length: 2,
       max_length: 2,
-      with_suffix: ""
+      append_suffix: ""
     },
     {
       category: ["roots"],
@@ -36,7 +36,7 @@
       suffix: [],
       min_length: 2,
       max_length: 2,
-      with_suffix: ""
+      append_suffix: ""
     },
     {
       category: ["roots"],
@@ -44,7 +44,7 @@
       suffix: [],
       min_length: 2,
       max_length: 2,
-      with_suffix: ""
+      append_suffix: ""
     },
     {
       category: ["roots"],
@@ -52,7 +52,7 @@
       suffix: [],
       min_length: 2,
       max_length: 2,
-      with_suffix: ""
+      append_suffix: ""
     },
     {
       category: ["pop_chars", "quick_chars"],
@@ -60,7 +60,7 @@
       suffix: [],
       min_length: 1,
       max_length: 1,
-      with_suffix: " "
+      append_suffix: " "
     },
     {
       category: ["pop_chars", "quick_chars"],
@@ -68,7 +68,7 @@
       suffix: [],
       min_length: 2,
       max_length: 2,
-      with_suffix: " "
+      append_suffix: " "
     }
   ],
   tabs: [
