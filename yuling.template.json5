@@ -1,7 +1,7 @@
 {
   name: "灵明字根简码练习",
   version: "无",
-  config_version: "2026.1.31-1",
+  config_version: "2026.1.31-2",
   fonts: [
     {
       name: "Yuniversus",
