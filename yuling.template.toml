@@ -1,6 +1,6 @@
 name = '灵明字根简码练习'
 version = '无'
-config_version = '2026.2.1-1'
+config_version = "2026.2.1-2"
 help = '''
 <div class="card">
     <style>
