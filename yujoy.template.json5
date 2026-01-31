@@ -5,8 +5,8 @@
   fonts: [
     {
       name: "Yuniversus",
-      file: "Yuniversus.woff",
-      type: "woff",
+      file: "Yuniversus.tiff",
+      type: "tiff",
       base64: ""
     }
   ],
