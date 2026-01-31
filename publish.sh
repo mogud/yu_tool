@@ -3,9 +3,12 @@ set -e
 
 # 参数解析
 DO_ZIP=false
+DO_LOCAL=false
 for arg in "$@"; do
     if [ "$arg" = "-zip" ]; then
         DO_ZIP=true
+    elif [ "$arg" = "-local" ]; then
+        DO_LOCAL=true
     fi
 done
 
@@ -14,37 +17,42 @@ mkdir -p ./publish
 rm -rf ./publish/*
 mkdir -p ./inputs
 
-# 下载 CSV 文件
-echo "Downloading CSV files..."
-csv_urls=(
-    "https://shurufa.app/zigen-ling.csv"
-    "https://shurufa.app/zigen-ming.csv"
-    "https://shurufa.app/zigen-joy.csv"
-)
-csv_names=("zigen-ling.csv" "zigen-ming.csv" "zigen-joy.csv")
-download_success=true
-
-for i in "${!csv_urls[@]}"; do
-    url="${csv_urls[$i]}"
-    name="${csv_names[$i]}"
-    echo "Downloading $url -> ./inputs/$name"
-    if ! curl -o "./inputs/$name" "$url"; then
-        echo "Failed to download $url"
-        download_success=false
-        break
-    fi
-done
-
-if [ "$download_success" = false ]; then
-    echo "Failed to download some CSV files, rollback..."
-
-    rm -f ./inputs/*.csv
+# 获取 CSV 文件
+if [ "$DO_LOCAL" = true ]; then
+    echo "Using local CSV files from ./assets..."
     cp ./assets/zigen-*.csv ./inputs/
-
 else
-    echo "All CSV files downloaded successfully"
+    echo "Downloading CSV files..."
+    csv_urls=(
+        "https://shurufa.app/zigen-ling.csv"
+        "https://shurufa.app/zigen-ming.csv"
+        "https://shurufa.app/zigen-joy.csv"
+    )
+    csv_names=("zigen-ling.csv" "zigen-ming.csv" "zigen-joy.csv")
+    download_success=true
 
-    cp ./inputs/zigen-*.csv ./assets/
+    for i in "${!csv_urls[@]}"; do
+        url="${csv_urls[$i]}"
+        name="${csv_names[$i]}"
+        echo "Downloading $url -> ./inputs/$name"
+        if ! curl -o "./inputs/$name" "$url"; then
+            echo "Failed to download $url"
+            download_success=false
+            break
+        fi
+    done
+
+    if [ "$download_success" = false ]; then
+        echo "Failed to download some CSV files, rollback..."
+
+        rm -f ./inputs/*.csv
+        cp ./assets/zigen-*.csv ./inputs/
+
+    else
+        echo "All CSV files downloaded successfully"
+
+        cp ./inputs/zigen-*.csv ./assets/
+    fi
 fi
 
 
