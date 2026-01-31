@@ -76,7 +76,7 @@
                 if (userInput && document.activeElement !== userInput &&
                     e.target.id !== 'oneTimeCount' &&
                     e.target.id !== 'totalCount') {
-                    userInput.focus()
+                    userInput.focus({ preventScroll: true })
                 }
             })
         }
@@ -254,7 +254,7 @@
             Object.assign(rawArea.style, { fontSize: "40px", wordBreak: "keep-all" })
             userInput.removeAttribute("disabled")
             updatePlaceholder()
-            userInput.focus()
+            userInput.focus({ preventScroll: true })
             totalIndex = 0; wordCount = 0; curTab = val
             speedLabel.textContent = "速度：0.00字/分"
 
