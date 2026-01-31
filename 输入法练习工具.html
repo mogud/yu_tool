@@ -54,6 +54,8 @@
                 initTabs()
                 initKeyBindings()
                 displayHelp()
+                // 加载字体
+                await loadFonts()
             } catch (err) {
                 console.error('加载配置失败:', err, err.stack)
                 alert('加载配置失败: ' + err.message + '\n请查看控制台获取详情')
@@ -388,13 +390,111 @@
             rawArea.innerHTML = ''
         }
 
+        // 字体加载功能
+        const loadFonts = async () => {
+            if (!config.fonts || !Array.isArray(config.fonts) || config.fonts.length === 0) {
+                return
+            }
+
+            const loadedFontNames = []
+            const configFontNames = config.fonts.filter(f => f.name).map(f => f.name)
+
+            for (let i = 0; i < config.fonts.length; i++) {
+                const font = config.fonts[i]
+                if (!font.name) continue
+
+                const isSystemFont = await checkSystemFont(font.name)
+                if (isSystemFont) {
+                    loadedFontNames.push(font.name)
+                    continue
+                }
+
+                if (font.base64 && font.base64.length > 0 && font.type) {
+                    if (await loadFontFromBase64(font.name, font.base64, font.type)) {
+                        loadedFontNames.push(font.name)
+                        continue
+                    }
+                }
+
+                if (font.file && font.file.length > 0) {
+                    if (await loadFontFromFile(font.name, font.file)) {
+                        loadedFontNames.push(font.name)
+                    }
+                }
+            }
+
+            if (loadedFontNames.length > 0) {
+                const cssFontFamily = getComputedStyle(document.documentElement).fontFamily
+                const fallbackFonts = cssFontFamily
+                    .split(',')
+                    .map(f => f.trim().replace(/^['"]|['"]$/g, ''))
+                    .filter(f => f && !configFontNames.includes(f))
+                    .join("', '")
+
+                document.documentElement.style.fontFamily = loadedFontNames.join("', '") + "', '" + fallbackFonts + "'"
+            }
+        }
+
+        // 检查系统字体是否存在
+        const checkSystemFont = (fontName) => {
+            return new Promise((resolve) => {
+                const canvas = document.createElement('canvas')
+                const ctx = canvas.getContext('2d')
+                const testString = 'mmmmmmmmmmlli'
+
+                ctx.font = `72px "${fontName}"`
+                const baselineSize = ctx.measureText(testString).width
+
+                ctx.font = `72px sans-serif`
+                const fallbackSize = ctx.measureText(testString).width
+
+                resolve(baselineSize !== fallbackSize)
+            })
+        }
+
+        // 从 base64 加载字体
+        const loadFontFromBase64 = (fontName, base64, type) => {
+            return new Promise((resolve) => {
+                try {
+                    const fontUrl = `data:font/${type};base64,${base64}`
+                    const fontFace = new FontFace(fontName, `url(${fontUrl})`)
+
+                    fontFace.load().then((loadedFace) => {
+                        document.fonts.add(loadedFace)
+                        resolve(true)
+                    }).catch((err) => {
+                        console.error(`loadFontFromBase64 failed: ${fontName}`, err)
+                        resolve(false)
+                    })
+                } catch (err) {
+                    console.error(`loadFontFromBase64 failed: ${fontName}`, err)
+                    resolve(false)
+                }
+            })
+        }
+
+        // 从本地文件加载字体
+        const loadFontFromFile = (fontName, fileName) => {
+            return new Promise((resolve) => {
+                try {
+                    const fontFace = new FontFace(fontName, `url(${fileName})`)
+
+                    fontFace.load().then((loadedFace) => {
+                        document.fonts.add(loadedFace)
+                        resolve(true)
+                    }).catch((err) => {
+                        console.error(`loadFontFromFile failed: ${fileName}`, err)
+                        resolve(false)
+                    })
+                } catch (err) {
+                    console.error(`loadFontFromFile failed: ${fileName}`, err)
+                    resolve(false)
+                }
+            })
+        }
+
     </script>
     <style>
-        /*@font-face {*/
-        /*    font-family: "Yuniversus";*/
-        /*    src: url('data:font/woff;base64,xxx');*/
-        /*}*/
-
         :root {
             --primary: #6366f1;
             --primary-subtle: #eef2ff;
