@@ -2,10 +2,12 @@
   name: "日月字根简码练习",
   version: "无",
   config_version: "2026.1.30-0",
-  font: {
-    name: "Yuniversus",
-    file: "Yuniversus.woff",
-  },
+  font: [
+    {
+      name: "Yuniversus",
+      file: "Yuniversus.woff",
+    }
+  ],
   key_bindings: [
     { key: "alt+r", command: "tab_reload" },
   ],

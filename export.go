@@ -23,7 +23,7 @@ type TemplateMeta struct {
 	Name          string              `json:"name" mapstructure:"name"`
 	Version       string              `json:"version" mapstructure:"version"`
 	ConfigVersion string              `json:"config_version" mapstructure:"config_version"`
-	Font          TemplateFont        `json:"font" mapstructure:"font"`
+	Font          []TemplateFont      `json:"font" mapstructure:"font"`
 	KeyBindings   []KeyBinding        `json:"key_bindings" mapstructure:"key_bindings"`
 	ItemsMeta     []TemplateItemsMeta `json:"items_meta" mapstructure:"items_meta"`
 	Tabs          []TemplateTab       `json:"tabs" mapstructure:"tabs"`
@@ -35,7 +35,7 @@ type Template struct {
 	Name          string                `json:"name"`
 	Version       string                `json:"version"`
 	ConfigVersion string                `json:"config_version"`
-	Font          TemplateFont          `json:"font"`
+	Font          []TemplateFont        `json:"font"`
 	KeyBindings   []KeyBinding          `json:"key_bindings"`
 	Items         []map[string][]string `json:"items"`
 	Tabs          []TemplateTab         `json:"tabs"`
@@ -347,7 +347,7 @@ func exportQuickWords(config ExportConfig) error {
 	// Export main quick file (no suffix)
 	mainPath := filepath.Join(config.YuhaoPath, config.MethodName+".quick.dict.yaml")
 	if _, err := os.Stat(mainPath); err == nil {
-		if err := exportQuickWordsFromFile(config.YuhaoPath, mainPath, "", config); err != nil {
+		if err := exportQuickWordsFromFile(mainPath, "", config); err != nil {
 			return err
 		}
 	}
@@ -355,14 +355,14 @@ func exportQuickWords(config ExportConfig) error {
 	// Find and export suffixed quick files
 	suffixedFiles := findSuffixedFiles(config.YuhaoPath, config.MethodName, "quick")
 	for suffix, filePath := range suffixedFiles {
-		if err := exportQuickWordsFromFile(config.YuhaoPath, filePath, suffix, config); err != nil {
+		if err := exportQuickWordsFromFile(filePath, suffix, config); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func exportQuickWordsFromFile(yuhaoPath, dictPath, suffix string, config ExportConfig) error {
+func exportQuickWordsFromFile(dictPath, suffix string, config ExportConfig) error {
 	file, err := os.Open(dictPath)
 	if err != nil {
 		return fmt.Errorf("failed to open '%s': %w", dictPath, err)
@@ -814,21 +814,4 @@ func updateTemplateConfigVersion(templatePath, newVersion string) error {
 	}
 
 	return nil
-}
-
-func copyFile(src, dst string) error {
-	srcFile, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer srcFile.Close()
-
-	dstFile, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer dstFile.Close()
-
-	_, err = io.Copy(dstFile, srcFile)
-	return err
 }
