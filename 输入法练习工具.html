@@ -37,9 +37,14 @@
                 // 恢复主界面结构
                 document.querySelector('.app-container').innerHTML = `<header class="header">
                     <h1 class="logo">${config.name || '输入法练习工具'}</h1>
-                    <p class="version">应用版本: ${appVersion}</p>
-                    <p class="version">输入法版本: ${config.version || '-'}</p>
-                    	<p class="version">配置版本: ${config.config_version || '-'}</p>                </header>
+                    <div class="version-info-bar">
+                        <span class="version-item"><span class="version-label">应用</span><span class="version-value">${appVersion}</span></span>
+                        <span class="version-divider"></span>
+                        <span class="version-item"><span class="version-label">输入法</span><span class="version-value">${config.version || '-'}</span></span>
+                        <span class="version-divider"></span>
+                        <span class="version-item"><span class="version-label">配置</span><span class="version-value">${config.config_version || '-'}</span></span>
+                    </div>
+                </header>
                 <nav class="nav-tabs"></nav>
                 <main></main>`
                 // 重置变量
@@ -452,13 +457,46 @@
             font-size: 2rem;
             font-weight: 700;
             color: var(--text-primary);
-            margin-bottom: 4px;
+            margin-bottom: 8px;
             letter-spacing: -0.02em;
         }
 
-        .version {
+        .version-info-bar {
+            display: inline-flex;
+            align-items: center;
+            gap: 0;
+            padding: 8px 16px;
+            background: var(--card-bg);
+            border-radius: 20px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .version-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+        }
+
+        .version-label {
+            color: var(--text-tertiary);
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .version-value {
             color: var(--text-secondary);
             font-size: 0.875rem;
+            font-weight: 600;
+            font-family: 'SF Mono', 'Consolas', monospace;
+        }
+
+        .version-divider {
+            width: 1px;
+            height: 16px;
+            background: var(--border);
         }
 
         .nav-tabs {
