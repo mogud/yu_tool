@@ -23,7 +23,7 @@ type TemplateMeta struct {
 	Name          string              `json:"name" mapstructure:"name"`
 	Version       string              `json:"version" mapstructure:"version"`
 	ConfigVersion string              `json:"config_version" mapstructure:"config_version"`
-	Font          []TemplateFont      `json:"font" mapstructure:"font"`
+	Fonts         []TemplateFont      `json:"fonts" mapstructure:"fonts"`
 	KeyBindings   []KeyBinding        `json:"key_bindings" mapstructure:"key_bindings"`
 	ItemsMeta     []TemplateItemsMeta `json:"items_meta" mapstructure:"items_meta"`
 	Tabs          []TemplateTab       `json:"tabs" mapstructure:"tabs"`
@@ -35,7 +35,7 @@ type Template struct {
 	Name          string                `json:"name"`
 	Version       string                `json:"version"`
 	ConfigVersion string                `json:"config_version"`
-	Font          []TemplateFont        `json:"font"`
+	Fonts         []TemplateFont        `json:"fonts"`
 	KeyBindings   []KeyBinding          `json:"key_bindings"`
 	Items         []map[string][]string `json:"items"`
 	Tabs          []TemplateTab         `json:"tabs"`
@@ -736,7 +736,7 @@ func exportTemplateFromFile(templatePath, outputName, methodNameSuffix string, c
 		Name:          tmplMeta.Name,
 		Version:       config.Version,
 		ConfigVersion: tmplMeta.ConfigVersion,
-		Font:          tmplMeta.Font,
+		Fonts:         tmplMeta.Fonts,
 		KeyBindings:   tmplMeta.KeyBindings,
 		Items:         items,
 		Tabs:          tmplMeta.Tabs,

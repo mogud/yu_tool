@@ -2,7 +2,7 @@
   name: "日月字根简码练习",
   version: "无",
   config_version: "2026.1.30-0",
-  font: [
+  fonts: [
     {
       name: "Yuniversus",
       file: "Yuniversus.woff",

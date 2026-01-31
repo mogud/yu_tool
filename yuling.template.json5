@@ -2,7 +2,7 @@
   name: "灵明字根简码练习",
   version: "无",
   config_version: "2026.1.30-4",
-  font: [
+  fonts: [
     {
       name: "Yuniversus",
       file: "Yuniversus.woff",
