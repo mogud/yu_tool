@@ -14,6 +14,37 @@ mkdir -p ./publish
 rm -rf ./publish/*
 mkdir -p ./inputs
 
+# 下载 CSV 文件
+echo "Downloading CSV files..."
+csv_urls=(
+    "http://shurufa.app/zigen-ling.csv"
+    "http://shurufa.app/zigen-ming.csv"
+    "http://shurufa.app/zigen-joy.csv"
+)
+csv_names=("zigen-ling.csv" "zigen-ming.csv" "zigen-joy.csv")
+download_success=true
+
+for i in "${!csv_urls[@]}"; do
+    url="${csv_urls[$i]}"
+    name="${csv_names[$i]}"
+    echo "Downloading $url -> ./inputs/$name"
+    if ! curl -sSL "$url" -o "./inputs/$name"; then
+        echo "Failed to download $url"
+        download_success=false
+        break
+    fi
+done
+
+if [ "$download_success" = false ]; then
+    echo "Failed to download some CSV files, rollback..."
+    rm -f ./inputs/*.csv
+    cp ./assets/zigen-*.csv ./inputs/
+else
+    cp ./inputs/zigen-*.csv ./assets/
+fi
+
+echo "All CSV files downloaded successfully"
+
 # 遍历 inputs 目录下的所有 zip 文件
 for zip_file in ./inputs/*.zip; do
     if [ -f "$zip_file" ]; then
