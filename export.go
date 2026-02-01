@@ -25,6 +25,7 @@ type TemplateMeta struct {
 	KeyBindings   []KeyBinding        `toml:"key_bindings"`
 	ItemsMeta     []TemplateItemsMeta `toml:"items_meta"`
 	Tabs          []TemplateTab       `toml:"tabs"`
+	Text          []TemplateText      `toml:"text"`
 	Help          []string            `toml:"help"`
 }
 
@@ -37,6 +38,7 @@ type Template struct {
 	KeyBindings   []KeyBinding          `toml:"key_bindings"`
 	Items         []map[string][]string `toml:"items"`
 	Tabs          []TemplateTab         `toml:"tabs"`
+	Text          []TemplateText        `toml:"text"`
 	Help          []string              `toml:"help"`
 }
 
@@ -46,6 +48,11 @@ type DictEntry [2]string
 type KeyBinding struct {
 	Key     string `toml:"key"`
 	Command string `toml:"command"`
+}
+
+type TemplateText struct {
+	Name    string `toml:"name"`
+	Content string `toml:"content"`
 }
 
 type TemplateItemsMeta struct {
@@ -736,6 +743,7 @@ func exportTemplateFromFile(templatePath, outputName, methodNameSuffix string, c
 		KeyBindings:   tmplMeta.KeyBindings,
 		Items:         items,
 		Tabs:          tmplMeta.Tabs,
+		Text:          tmplMeta.Text,
 		Help:          tmplMeta.Help,
 	}
 
