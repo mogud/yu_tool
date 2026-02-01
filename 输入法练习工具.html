@@ -628,8 +628,10 @@
 
             // 切换输入区域
             const toggleInputArea = (val) => {
-                const contentCard = getEl("content")
-                contentCard.style.display = val ? "flex" : "none"
+                const contentCard = document.getElementById('content') || document.getElementById('freeContent')
+                if (contentCard) {
+                    contentCard.style.display = val ? "flex" : "none"
+                }
                 const userInput = document.getElementById('userInput') || document.getElementById('freeUserInput')
                 if (userInput) userInput.value = ""
             }
@@ -844,10 +846,16 @@
                 const userInput = isFreeType
                     ? document.getElementById('freeUserInput')
                     : document.getElementById('userInput')
-                const speedLabel = document.getElementById('speedLabel')
+                const speedLabel = isFreeType
+                    ? document.getElementById('freeSpeedLabel')
+                    : document.getElementById('speedLabel')
                 const progressLabel = document.getElementById('progressLabel')
-                const keystrokeSpeedLabel = document.getElementById('keystrokeSpeedLabel')
-                const accuracyLabel = document.getElementById('accuracyLabel')
+                const keystrokeSpeedLabel = isFreeType
+                    ? document.getElementById('freeKeystrokeSpeedLabel')
+                    : document.getElementById('keystrokeSpeedLabel')
+                const accuracyLabel = isFreeType
+                    ? document.getElementById('freeAccuracyLabel')
+                    : document.getElementById('accuracyLabel')
 
                 if (!rawArea || !userInput) {
                     console.error('startPractice: rawArea or userInput not found')
@@ -1029,12 +1037,6 @@
                     span.id = `free-char-${idx}`
                     span.textContent = char
                     span.dataset.char = char
-                    span.style.color = 'var(--text-tertiary)'
-                    span.style.margin = '0 2px'
-                    span.style.padding = '4px 6px'
-                    span.style.borderRadius = '4px'
-                    span.style.display = 'inline-block'
-                    span.style.transition = 'all 0.15s ease'
                     freeArea.appendChild(span)
                 })
 
@@ -1055,9 +1057,9 @@
                 AppState.set('errorKeystrokes', 0)
 
                 // 重置指标显示
-                const speedLabel = document.getElementById('speedLabel')
-                const keystrokeSpeedLabel = document.getElementById('keystrokeSpeedLabel')
-                const accuracyLabel = document.getElementById('accuracyLabel')
+                const speedLabel = document.getElementById('freeSpeedLabel')
+                const keystrokeSpeedLabel = document.getElementById('freeKeystrokeSpeedLabel')
+                const accuracyLabel = document.getElementById('freeAccuracyLabel')
                 if (speedLabel) speedLabel.textContent = ""
                 if (keystrokeSpeedLabel) keystrokeSpeedLabel.textContent = "击键：0.00次/秒"
                 if (accuracyLabel) accuracyLabel.textContent = "键准：100%"
@@ -1075,9 +1077,6 @@
                 }
 
                 inputTimer = setTimeout(() => {
-                    // 更新统计
-                    AppState.set('totalKeystrokes', AppState.get('totalKeystrokes') + 1)
-
                     // 只对比用户输入的长度的内容
                     const inputLen = Math.min(val.length, currentText.length)
 
@@ -1128,7 +1127,7 @@
                             const elapsedSeconds = (new Date().getTime() - AppState.get('startTime')) / 1000
                             if (elapsedSeconds > 0) {
                                 const keystrokeSpeed = totalKeystrokes / elapsedSeconds
-                                const keystrokeSpeedLabel = document.getElementById('keystrokeSpeedLabel')
+                                const keystrokeSpeedLabel = document.getElementById('freeKeystrokeSpeedLabel')
                                 if (keystrokeSpeedLabel) keystrokeSpeedLabel.textContent = `击键：${keystrokeSpeed.toFixed(2)}次/秒`
                             }
 
@@ -1136,7 +1135,7 @@
                             const errorKeystrokes = AppState.get('errorKeystrokes')
                             if (totalKeystrokes > 0) {
                                 const accuracy = ((totalKeystrokes - errorKeystrokes) / totalKeystrokes) * 100
-                                const accuracyLabel = document.getElementById('accuracyLabel')
+                                const accuracyLabel = document.getElementById('freeAccuracyLabel')
                                 if (accuracyLabel) accuracyLabel.textContent = `键准：${accuracy.toFixed(1)}%`
                             }
 
@@ -1177,6 +1176,10 @@
                 // 监听键盘事件
                 const keydownHandler = (e) => {
                     if (!userInput || document.activeElement !== userInput) return
+
+                    // 每次 keydown 都算一次按键
+                    AppState.set('totalKeystrokes', AppState.get('totalKeystrokes') + 1)
+
                     // Backspace 和 Del 视为错误按键
                     if (e.key === 'Backspace' || e.key === 'Delete') {
                         AppState.set('errorKeystrokes', AppState.get('errorKeystrokes') + 1)
@@ -1215,6 +1218,7 @@
             --error: #ef4444;
             --error-subtle: #fee2e2;
             --warning: #f59e0b;
+            --warning-subtle: #fef3c7;
             --bg: #f8fafc;
             --card-bg: #ffffff;
             --text-primary: #1e293b;
@@ -1744,8 +1748,24 @@
         .free-display-area {
             min-height: 320px;
             font-size: 2rem;
-            line-height: 2.2;
-            letter-spacing: 0.1em;
+            line-height: 1.6;
+            letter-spacing: normal !important;
+            word-break: normal !important;
+            text-align: left;
+        }
+
+        .free-display-area span {
+            margin: 0;
+            padding: 0;
+            display: inline;
+            color: var(--text-tertiary);
+            border-radius: 4px;
+            transition: all 0.15s ease;
+        }
+
+        .free-display-area span.error {
+            color: var(--error);
+            background: var(--error-subtle);
         }
 
         .free-input-area {
@@ -1831,11 +1851,11 @@
     <template id="free-template">
         <div class="card practice-card">
             <div class="stats-bar">
-                <span id="speedLabel"></span>
-                <span id="keystrokeSpeedLabel">击键：0.00次/秒</span>
-                <span id="accuracyLabel">键准：100%</span>
+                <span id="freeSpeedLabel"></span>
+                <span id="freeKeystrokeSpeedLabel">击键：0.00次/秒</span>
+                <span id="freeAccuracyLabel">键准：100%</span>
             </div>
-            <div class="content-area" id="content">
+            <div class="content-area" id="freeContent">
                 <div class="display-area free-display-area" id="freeArea"></div>
                 <div class="input-area free-input-area">
                     <textarea id="freeUserInput" class="free-input" placeholder="自由输入" rows="3"></textarea>
