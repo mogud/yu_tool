@@ -1046,11 +1046,17 @@
                 // 启用输入框
                 userInput.removeAttribute('disabled')
 
-                // 初始化进度显示
-                const progressLabel = document.getElementById('progressLabel')
-                if (progressLabel) {
-                    progressLabel.textContent = `\t进度：0/${text.length}字`
-                }
+                // 重置击键统计
+                AppState.set('totalKeystrokes', 0)
+                AppState.set('errorKeystrokes', 0)
+
+                // 重置指标显示
+                const speedLabel = document.getElementById('speedLabel')
+                const keystrokeSpeedLabel = document.getElementById('keystrokeSpeedLabel')
+                const accuracyLabel = document.getElementById('accuracyLabel')
+                if (speedLabel) speedLabel.textContent = ""
+                if (keystrokeSpeedLabel) keystrokeSpeedLabel.textContent = "击键：0.00次/秒"
+                if (accuracyLabel) accuracyLabel.textContent = "键准：100%"
             }
 
             // 处理用户输入
@@ -1107,24 +1113,12 @@
                         }
                     }
 
-                    // 更新进度显示（用户输入的长度）
-                    const progressLabel = document.getElementById('progressLabel')
-                    if (progressLabel) {
-                        progressLabel.textContent = `\t进度：${val.length}/${currentText.length}字`
-                    }
-
                     // 启动指标计时器
                     const metricsTimer = AppState.get('metricsTimer')
                     if (val.length > 0 && metricsTimer === null) {
                         AppState.set('startTime', new Date().getTime())
                         // 启动指标更新定时器
                         const updateFreeMetrics = () => {
-                            // 更新打字速度（字/分）
-                            const wordCount = AppState.get('wordCount')
-                            const speed = wordCount * 60 * 1000 / (new Date().getTime() - AppState.get('startTime'))
-                            const speedLabel = document.getElementById('speedLabel')
-                            if (speedLabel) speedLabel.textContent = `速度：${speed.toFixed(2)}字/分`
-
                             // 更新击键速度（次/秒）
                             const totalKeystrokes = AppState.get('totalKeystrokes')
                             const elapsedSeconds = (new Date().getTime() - AppState.get('startTime')) / 1000
@@ -1158,7 +1152,22 @@
             const bindEvents = () => {
                 const userInput = document.getElementById('userInput')
                 if (userInput) {
-                    userInput.oninput = handleInput
+                    // 输入法组合期间不处理对比
+                    let isComposing = false
+                    userInput.addEventListener('compositionstart', () => {
+                        isComposing = true
+                    })
+                    userInput.addEventListener('compositionend', (e) => {
+                        isComposing = false
+                        // 组合结束后立即处理输入
+                        handleInput()
+                    })
+
+                    userInput.oninput = () => {
+                        // 输入法组合期间不处理
+                        if (isComposing) return
+                        handleInput()
+                    }
                 }
 
                 // 监听键盘事件
@@ -1763,14 +1772,7 @@
     </template>
     <template id="free-template">
         <div class="card practice-card">
-            <div class="settings-bar">
-                <div class="setting-group">
-                    <label>练习总数</label>
-                    <input id="totalCount" class="number-input" type="number" min="10" max="500" value="120">
-                </div>
-            </div>
             <div class="stats-bar">
-                <span id="progressLabel"></span>
                 <span id="speedLabel"></span>
                 <span id="keystrokeSpeedLabel">击键：0.00次/秒</span>
                 <span id="accuracyLabel">键准：100%</span>
