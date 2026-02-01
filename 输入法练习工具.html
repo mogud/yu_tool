@@ -1491,13 +1491,6 @@
                 margin: 0 0 24px 0;
             }
 
-            .launch-select {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 12px;
-            }
-
             .launch-select input[type="file"] {
                 display: none;
             }
@@ -1688,10 +1681,6 @@
                 gap: 20px;
             }
 
-            .practice-card .content-area {
-                margin-top: 0;
-            }
-
             /* ============================================
                设置栏样式
                ============================================ */
@@ -1716,42 +1705,26 @@
                 font-weight: 500;
             }
 
-            .number-input {
-                width: 70px;
-                padding: 8px 10px;
-                border: 2px solid var(--border);
-                border-radius: var(--radius-sm);
-                font-size: 0.9rem;
-                text-align: center;
-                outline: none;
-                transition: all var(--transition);
-                color: var(--text-primary);
-                font-weight: 500;
-            }
-
-            .number-input:focus {
-                border-color: var(--primary);
-                box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-            }
-
             .radio-group {
                 display: flex;
                 gap: 16px;
             }
 
-            .radio-group label {
+            .radio-group label, .checkbox-label {
                 display: flex;
                 align-items: center;
-                gap: 6px;
                 cursor: pointer;
                 font-size: 0.875rem;
                 color: var(--text-secondary);
                 transition: color var(--transition);
             }
 
-            .radio-group label:hover {
+            .radio-group label:hover, .checkbox-label:hover {
                 color: var(--text-primary);
             }
+
+            .radio-group label { gap: 6px; }
+            .checkbox-label { gap: 8px; font-weight: 500; }
 
             .radio-group input[type="radio"] {
                 width: 16px;
@@ -1765,21 +1738,6 @@
                 align-items: center;
             }
 
-            .checkbox-label {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                cursor: pointer;
-                font-size: 0.875rem;
-                color: var(--text-secondary);
-                font-weight: 500;
-                transition: color var(--transition);
-            }
-
-            .checkbox-label:hover {
-                color: var(--text-primary);
-            }
-
             .checkbox-label input[type="checkbox"] {
                 width: 18px;
                 height: 18px;
@@ -1790,7 +1748,7 @@
             /* ============================================
                文章选择下拉框样式
                ============================================ */
-            .text-select {
+            .text-select, .number-input {
                 padding: 8px 12px;
                 border: 2px solid var(--border);
                 border-radius: var(--radius-sm);
@@ -1802,7 +1760,9 @@
                 transition: all var(--transition);
             }
 
-            .text-select:focus {
+            .number-input { text-align: center; width: 70px; font-weight: 500; }
+
+            .text-select:focus, .number-input:focus {
                 border-color: var(--primary);
                 box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
             }
@@ -1828,10 +1788,6 @@
             .content-area {
                 display: flex;
                 flex-direction: column;
-            }
-
-            .content-area > * {
-                align-self: stretch;
             }
 
             /* 字根练习显示区域 */
@@ -1887,13 +1843,7 @@
             /* ============================================
                输入区域样式
                ============================================ */
-            .input-area {
-                margin-top: 24px;
-                display: flex;
-                justify-content: center;
-            }
-
-            .free-input-area {
+            .input-area, .free-input-area {
                 margin-top: 24px;
                 display: flex;
                 justify-content: center;
@@ -1931,7 +1881,7 @@
                 width: 100%;
                 min-height: 200px;
                 font-size: 1.5rem;
-                padding: 10px 16px !important;
+                padding: 10px 16px;
                 line-height: 1.8;
                 letter-spacing: 0.5px;
                 border: 2px solid var(--border);
@@ -1939,7 +1889,6 @@
                 resize: vertical;
                 outline: none;
                 font-family: inherit;
-                box-sizing: border-box;
                 background: var(--bg);
                 color: var(--text-primary);
                 transition: all var(--transition);
@@ -1955,18 +1904,10 @@
             }
 
             #freeUserInput {
-                width: 100%;
-                height: 100%;
-                min-height: 200px;
-                font-size: 1.5rem;
                 padding: 0;
                 line-height: 1.6;
                 border: none;
-                resize: vertical;
-                outline: none;
-                font-family: inherit;
                 background: transparent;
-                color: var(--text-primary);
             }
 
             /* ============================================
