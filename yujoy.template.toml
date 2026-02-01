@@ -100,48 +100,48 @@ index = [0]
 
 [[tabs]]
 label = 'ABCDE 键字根'
-type = 'range'
+type = 'item'
 group = '键位练习'
 index = [0]
 
 [[tabs]]
 label = 'FGHIJ 键字根'
-type = 'range'
+type = 'item'
 group = '键位练习'
 index = [1]
 
 [[tabs]]
 label = 'KLMNO 键字根'
-type = 'range'
+type = 'item'
 group = '键位练习'
 index = [2]
 
 [[tabs]]
 label = 'PQRST 键字根'
-type = 'range'
+type = 'item'
 group = '键位练习'
 index = [3]
 
 [[tabs]]
 label = 'UVWXY 键字根'
-type = 'range'
+type = 'item'
 group = '键位练习'
 index = [4]
 
 [[tabs]]
 label = '全部字根'
-type = 'range'
+type = 'item'
 group = '键位练习'
 index = [0, 1, 2, 3, 4]
 
 [[tabs]]
 label = '一级简码'
-type = 'range'
+type = 'item'
 group = '简码练习'
 index = [5]
 
 [[tabs]]
 label = '二级简码'
-type = 'range'
+type = 'item'
 group = '简码练习'
 index = [6]
