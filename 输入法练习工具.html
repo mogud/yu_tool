@@ -1232,12 +1232,6 @@
             --transition: 0.2s ease;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         html {
             font-size: 16px;
             line-height: 1.6;
@@ -1513,7 +1507,7 @@
         }
 
         .display-area {
-            width: 100%;
+            width: auto;
             min-height: 280px;
             padding: 28px;
             background: var(--bg);
@@ -1778,16 +1772,18 @@
             width: 100%;
             min-height: 200px;
             font-size: 1.5rem;
-            padding: 16px 20px;
-            line-height: 1.6;
+            padding: 10px 16px !important;
+            line-height: 1.8;
+            letter-spacing: 0.5px;
             border: 2px solid var(--border);
-            border-radius: var(--radius-sm);
+            border-radius: var(--radius);
             resize: vertical;
             outline: none;
             font-family: inherit;
             box-sizing: border-box;
             background: var(--bg);
             color: var(--text-primary);
+            transition: all var(--transition);
         }
 
         .free-input:focus {
@@ -1795,19 +1791,8 @@
             box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
         }
 
-        .free-input {
-            width: 100%;
-            height: 100%;
-            min-height: 200px;
-            font-size: 1.5rem;
-            padding: 0;
-            line-height: 1.6;
-            border: none;
-            resize: vertical;
-            outline: none;
-            font-family: inherit;
-            background: transparent;
-            color: var(--text-primary);
+        .free-input::placeholder {
+            color: var(--text-tertiary);
         }
     </style>
 </head>
