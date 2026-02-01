@@ -5,36 +5,723 @@
     <meta charset="utf-8">
     <title>输入法练习工具</title>
     <script>
+        // ============================================
+        // 工具库 - TOML解析器（保持不变）
+        // ============================================
         const TOML=function(){"use strict";let e="",t=0;function i(e,t=0){let i;for(;(i=e[t++])&&(" "==i||"\t"==i||"\r"==i););return t-1}function n(e){switch(e[0]){case void 0:return"";case'"':return function(e){let t,i=0,n="";for(;t=e.indexOf("\\",i)+1;){switch(n+=e.slice(i,t-1),e[t]){case"\\":n+="\\";break;case'"':n+='"';break;case"\r":"\n"==e[t+1]&&t++;case"\n":break;case"b":n+="\b";break;case"t":n+="\t";break;case"n":n+="\n";break;case"f":n+="\f";break;case"r":n+="\r";break;case"u":n+=String.fromCharCode(parseInt(e.substr(t+1,4),16)),t+=4;break;case"U":n+=String.fromCharCode(parseInt(e.substr(t+1,8),16)),t+=8;break;default:throw r(e[t])}i=t+1}return n+e.slice(i)}(e.slice(1,-1));case"'":return e.slice(1,-1);case"0":case"1":case"2":case"3":case"4":case"5":case"6":case"7":case"8":case"9":case"+":case"-":case".":let t=e;if(-1!=t.indexOf("_")&&(t=t.replace(/_/g,"")),!isNaN(t))return+t;if("-"==e[4]&&"-"==e[7]){let t=new Date(e);if("Invalid Date"!=t.toString())return t}else if(":"==e[2]&&":"==e[5]&&e.length>=7){let t=new Date("0000-01-01T"+e+"Z");if("Invalid Date"!=t.toString())return t}return e}switch(e){case"true":return!0;case"false":return!1;case"nan":case"NaN":return!1;case"null":return null;case"inf":case"+inf":case"Infinity":case"+Infinity":return 1/0;case"-inf":case"-Infinity":return-1/0}return e}function r(i){let n=function(){let i=e[t],n=t;"\n"==i&&n--;let r=1,s=e.lastIndexOf("\n",n),a=e.indexOf("\n",n);-1==a&&(a=1/0);","!=i&&"\n"!=i||(n=s+1);if(-1==s)return{line:r,column:n+1,position:n,lineContent:e.slice(0,a).trim()};const c=n-s+1,o=e.slice(s+1,a).trim();r++;for(;-1!=(s=e.lastIndexOf("\n",s-1));)r++;return{line:r,column:c,position:n,lineContent:o}}(),r=String(n.line);return i+="\n"+r+" |  "+n.lineContent+"\n",i+=" ".repeat(r.length+n.column+2)+"^",SyntaxError(i)}function s(e,i=0,n=!1){let a,c=e[i],o=c,f=c,l=!0,u=!1;switch(c){case'"':case"'":if(a=i+1,n&&e[i+1]==c&&e[i+2]==c?(f=c+c+c,a+=2):u=!0,"'"==c)a=e.indexOf(f,a)+1;else for(;a=e.indexOf(f,a)+1;){let t=!0,i=a-1;for(;"\\"==e[--i];)t=!t;if(t)break}if(!a)throw r("Missing "+f+" closer");if(c!=f)a+=2;else if(u){let n=e.indexOf("\n",i+1)+1;if(n&&n<a)throw t=n-2,r("Forbidden end-of-line character in single-line string")}return a;case"(":f=")";break;case"{":f="}";break;case"[":f="]";break;case"<":f=">";break;default:l=!1}let h=0;for(;c=e[++i];)if(c==f){if(0==h)return i+1;h--}else if('"'==c||"'"==c){i=s(e,i,n)-1}else l&&c==o&&h++;throw r("Missing "+f)}function a(e){"string"!=typeof e&&(e=String(e));let t,i,n=-1,a="",c=[];for(;i=e[++n];)switch(i){case".":if(!a)throw r('Unexpected "."');c.push(a),a="";continue;case'"':case"'":if(t=s(e,n),t==n+2)throw r("Empty string key");a+=e.slice(n+1,t-1),n=t-1;continue;default:a+=i}return a&&c.push(a),c}function c(e,t=[]){const i=t.pop();for(let i of t){if("object"!=typeof e){throw r('["'+t.slice(0,t.indexOf(i)+1).join('"].["')+'"]'+" must be an object")}void 0===e[i]&&(e[i]={}),(e=e[i])instanceof Array&&(e=e[e.length-1])}return[e,i]}class o{constructor(){this.root={},this.data=this.root,this.inlineScopeList=[]}get isRoot(){return this.data==this.root}set(e,t){let[i,n]=c(this.data,a(e));if("string"==typeof i)throw"Wtf the scope is a string. Please report the bug";if(n in i)throw r(`Re-writing the key '${e}'`);return i[n]=t,t}push(e){if(!(this.data instanceof Array)){if(!this.isRoot)throw r("Missing key");this.data=Object.assign([],this.data),this.root=this.data}return this.data.push(e),this}use(e){return this.data=function(e,t=[]){for(let i of t){if(void 0===e)e=lastData[lastElt]={};else if("object"!=typeof e){throw r('["'+t.slice(0,t.indexOf(i)+1).join('"].["')+'"]'+" must be an object")}void 0===e[i]&&(e[i]={}),(e=e[i])instanceof Array&&(e=e[e.length-1])}return e}(this.root,a(e)),this}useArray(e){let[t,i]=c(this.root,a(e));return this.data={},void 0===t[i]&&(t[i]=[]),t[i].push(this.data),this}enter(e,t){return this.inlineScopeList.push(this.data),this.set(e,t),this.data=t,this}enterArray(e){return this.inlineScopeList.push(this.data),this.push(e),this.data=e,this}exit(){return this.data=this.inlineScopeList.pop(),this}}function f(a){"string"!=typeof a&&(a=String(a));const c=new o,f=[];e=a,t=0;let l,u,h="",d="",p=e[0],w=!0;const g=()=>{if(h=h.trimEnd(),w)h&&c.push(n(h));else{if(!h)throw r("Expected key before =");if(!d)throw r("Expected value after =");c.set(h,n(d.trimEnd()))}h="",d="",w=!0};do{switch(p){case" ":w?h&&(h+=p):d&&(d+=p);case"\t":case"\r":continue;case"#":t=e.indexOf("\n",t+1)-1,-2==t&&(t=1/0);continue;case'"':case"'":if(!w&&d){d+=p;continue}let n=e[t+1]==p&&e[t+2]==p;if(l=s(e,t,!0),w){if(h)throw r("Unexpected "+p);h+=n?e.slice(t+2,l-2):e.slice(t,l),t=l}else d=e.slice(t,l),t=l,n&&(d=d.slice(2,-2),"\n"==d[1]?d=d[0]+d.slice(2):"\r"==d[1]&&"\n"==d[2]&&(d=d[0]+d.slice(3)));if(t=i(e,t),p=e[t],p&&","!=p&&"\n"!=p&&"#"!=p&&"}"!=p&&"]"!=p&&"="!=p)throw r("Unexpected character after end of string");t--;continue;case"\n":case",":case void 0:g();continue;case"[":case"{":if(u="["==p?"]":"}",w&&!f.length){if(h)throw r("Unexpected "+p);if(l=s(e,t),"["==p&&"["==e[t+1]){if("]"!=e[l-2])throw r("Missing ]]");c.useArray(e.slice(t+2,l-2))}else c.use(e.slice(t+1,l-1));t=l}else if(w){if(h)throw r("Unexpected "+p);c.enterArray("["==p?[]:{}),f.push(u)}else{if(d)throw r("Unexpected "+p);c.enter(h.trimEnd(),"["==p?[]:{}),f.push(u),h="",w=!0}continue;case"]":case"}":if(h&&g(),f.pop()!=p)throw r("Unexpected "+p);if(c.exit(),t=i(e,t+1),p=e[t],p&&","!=p&&"\n"!=p&&"#"!=p&&"}"!=p&&"]"!=p)throw r("Unexpected character after end of scope");t--;continue;case"=":if(!w)throw r("Unexpected "+p);if(!h)throw r("Missing key before "+p);w=!1;continue;default:w?h+=p:d+=p}}while((p=e[++t])||h);if(f.length)throw r("Missing "+f.pop());return c.root}let l=null,u=null;function h(){let e="";for(let t of arguments)e+="string"==typeof t?t:t[0];return f(e)}return h.parse=f,h.parseFile=async function(e){if(l||(l=require("fs")),!u){const{promisify:e}=require("util");u=e(l.readFile)}return f(await u(e))},h.parseFileSync=function(e){return l||(l=require("fs")),f(l.readFileSync(e))},h}();
 
-        const config = {}
-        const appVersion = "1.0.0"
+        // ============================================
+        // 字体加载模块
+        // ============================================
+        const FontLoader = (() => {
+            const FONT_LOAD_TIMEOUT = 5000 // 字体加载超时5秒
 
-        let speedTimer = null
-        let wordCount = 0
-        let startTime = 0
-        let curInputMax = 0
-        let curInputIndex = 0
-        let curTab = 0
-        let totalWords = []
-        let totalIndex = 0
-        let inputTimer = null
+            // 检查系统字体是否存在
+            const checkSystemFont = (fontName) => {
+                return new Promise((resolve) => {
+                    const canvas = document.createElement('canvas')
+                    const ctx = canvas.getContext('2d')
+                    const testString = 'mmmmmmmmmmlli'
 
-        let rawArea = null
-        let rawAreaFonts = null
-        let userInput = null
-        let speedLabel = null
-        let progressLabel = null
+                    ctx.font = `72px "${fontName}"`
+                    const baselineSize = ctx.measureText(testString).width
 
-        const onConfigSelected = async (e) => {
-            const file = e.target.files[0]
-            if (!file) return
-            try {
-                const text = await file.text()
-                const newConfig = TOML.parse(text)
-                Object.assign(config, newConfig)
+                    ctx.font = `72px sans-serif`
+                    const fallbackSize = ctx.measureText(testString).width
+
+                    resolve(baselineSize !== fallbackSize)
+                })
+            }
+
+            // 从 base64 加载字体
+            const loadFontFromBase64 = (fontName, base64, type) => {
+                return new Promise((resolve) => {
+                    const fontUrl = `data:font/${type};base64,${base64}`
+                    const fontFace = new FontFace(fontName, `url(${fontUrl})`)
+
+                    // 添加超时处理
+                    const timeoutId = setTimeout(() => {
+                        console.warn(`字体加载超时: ${fontName}`)
+                        resolve(false)
+                    }, FONT_LOAD_TIMEOUT)
+
+                    fontFace.load().then((loadedFace) => {
+                        clearTimeout(timeoutId)
+                        document.fonts.add(loadedFace)
+                        resolve(true)
+                    }).catch((err) => {
+                        clearTimeout(timeoutId)
+                        console.error(`loadFontFromBase64 failed: ${fontName}`, err)
+                        resolve(false)
+                    })
+                })
+            }
+
+            // 从本地文件加载字体
+            const loadFontFromFile = (fontName, fileName) => {
+                return new Promise((resolve) => {
+                    const fontFace = new FontFace(fontName, `url(${fileName})`)
+
+                    // 添加超时处理
+                    const timeoutId = setTimeout(() => {
+                        console.warn(`字体加载超时: ${fontName}`)
+                        resolve(false)
+                    }, FONT_LOAD_TIMEOUT)
+
+                    fontFace.load().then((loadedFace) => {
+                        clearTimeout(timeoutId)
+                        document.fonts.add(loadedFace)
+                        resolve(true)
+                    }).catch((err) => {
+                        clearTimeout(timeoutId)
+                        console.warn(`字体加载失败（文件可能不存在）: ${fileName}`)
+                        resolve(false)
+                    })
+                })
+            }
+
+            // 加载单个字体
+            const loadFont = async (font) => {
+                if (!font.name) return null
+
+                const isSystemFont = await checkSystemFont(font.name)
+                if (isSystemFont) return font.name
+
+                if (font.base64 && font.base64.length > 0 && font.type) {
+                    if (await loadFontFromBase64(font.name, font.base64, font.type)) return font.name
+                }
+
+                if (font.file && font.file.length > 0) {
+                    if (await loadFontFromFile(font.name, font.file)) return font.name
+                }
+
+                return null
+            }
+
+            // 加载所有字体
+            const loadAll = async (fonts) => {
+                if (!fonts || !Array.isArray(fonts)) return null
+
+                const loadedFontNames = []
+                for (const font of fonts) {
+                    const result = await loadFont(font)
+                    if (result) loadedFontNames.push(result)
+                }
+
+                // 构建字体栈
+                const fontContainer = document.getElementById("font-container")
+                const cssFontFamily = getComputedStyle(fontContainer).fontFamily
+                const fallbackFonts = cssFontFamily
+                    .split(',')
+                    .map(f => f.trim().replace(/^['"]|['"]$/g, ''))
+                    .filter(f => f && !loadedFontNames.includes(f))
+                    .join("', '")
+
+                if (loadedFontNames.length > 0) {
+                    return "'" + loadedFontNames.join("', '") + "', '" + fallbackFonts + "'"
+                }
+                return "'" + fallbackFonts + "'"
+            }
+
+            return { loadAll }
+        })()
+
+        // ============================================
+        // 配置缓存模块
+        // ============================================
+        const ConfigCache = (() => {
+            let lastConfigPath = null
+            let lastConfigContent = null
+
+            const isSameConfig = (path, content) => {
+                return lastConfigPath === path && lastConfigContent === content
+            }
+
+            const set = (path, content) => {
+                lastConfigPath = path
+                lastConfigContent = content
+            }
+
+            const clear = () => {
+                lastConfigPath = null
+                lastConfigContent = null
+            }
+
+            return { isSameConfig, set, clear }
+        })()
+
+        // ============================================
+        // 应用状态管理
+        // ============================================
+        const AppState = (() => {
+            let state = {
+                speedTimer: null,
+                wordCount: 0,
+                startTime: 0,
+                curInputMax: 0,
+                curInputIndex: 0,
+                curTab: 0,
+                totalWords: [],
+                totalIndex: 0,
+                inputTimer: null,
+                rawAreaFonts: null,
+                cleanupHandlers: []
+            }
+
+            const reset = () => {
+                // 清理所有定时器
+                if (state.speedTimer) clearTimeout(state.speedTimer)
+                if (state.inputTimer) clearTimeout(state.inputTimer)
+                // 执行所有清理函数
+                state.cleanupHandlers.forEach(fn => fn())
+                state.cleanupHandlers = []
+                // 重置状态
+                state = {
+                    speedTimer: null,
+                    wordCount: 0,
+                    startTime: 0,
+                    curInputMax: 0,
+                    curInputIndex: 0,
+                    curTab: 0,
+                    totalWords: [],
+                    totalIndex: 0,
+                    inputTimer: null,
+                    rawAreaFonts: state.rawAreaFonts,
+                    cleanupHandlers: []
+                }
+            }
+
+            const addCleanup = (fn) => {
+                state.cleanupHandlers.push(fn)
+            }
+
+            const get = (key) => state[key]
+            const set = (key, value) => { state[key] = value }
+
+            return { reset, addCleanup, get, set, state }
+        })()
+
+        // ============================================
+        // DOM 引用缓存
+        // ============================================
+        const DOMRefs = (() => {
+            let refs = {}
+
+            const init = () => {
+                refs = {
+                    rawArea: document.getElementById("rawArea"),
+                    userInput: document.getElementById("userInput"),
+                    speedLabel: document.getElementById("speedLabel"),
+                    progressLabel: document.getElementById("progressLabel")
+                }
+                return refs
+            }
+
+            const get = (id) => refs[id] || document.getElementById(id)
+
+            return { init, get }
+        })()
+
+        // ============================================
+        // 配置验证模块
+        // ============================================
+        const ConfigValidator = (() => {
+            const schema = {
+                name: { type: 'string', default: '输入法练习工具' },
+                version: { type: 'string', default: '-' },
+                config_version: { type: 'string', default: '-' },
+                tabs: { type: 'array', required: true },
+                items: { type: 'array', required: true },
+                help: { type: 'string', default: '' },
+                fonts: { type: 'array', default: [] },
+                key_bindings: { type: 'array', default: [] }
+            }
+
+            const validate = (config) => {
+                const errors = []
+
+                if (!config || typeof config !== 'object') {
+                    return { valid: false, errors: ['配置解析失败'] }
+                }
+
+                // 验证必填字段
+                if (!config.tabs || !Array.isArray(config.tabs)) {
+                    errors.push('缺少 tabs 配置')
+                }
+                if (!config.items || !Array.isArray(config.items)) {
+                    errors.push('缺少 items 配置')
+                }
+
+                // 验证 tabs 结构
+                if (config.tabs) {
+                    config.tabs.forEach((tab, i) => {
+                        if (!tab.label) errors.push(`tabs[${i}] 缺少 label`)
+                        if (tab.type !== 'help' && (typeof tab.beg !== 'number' || typeof tab.end !== 'number')) {
+                            errors.push(`tabs[${i}] 缺少 beg 或 end`)
+                        }
+                    })
+                }
+
+                return {
+                    valid: errors.length === 0,
+                    errors,
+                    data: config
+                }
+            }
+
+            return { validate }
+        })()
+
+        // ============================================
+        // 会话存储封装
+        // ============================================
+        const SessionStore = (() => {
+            const get = (key, defaultVal) => {
+                const val = sessionStorage.getItem(key)
+                if (val === null) return defaultVal
+                // 处理布尔值
+                if (val === 'true') return true
+                if (val === 'false') return false
+                // 处理数字
+                const num = parseFloat(val)
+                return isNaN(num) ? val : num
+            }
+
+            const set = (key, value) => {
+                sessionStorage.setItem(key, String(value))
+            }
+
+            return { get, set }
+        })()
+
+        // ============================================
+        // 工具函数
+        // ============================================
+        const Utils = (() => {
+            const shuffleArray = (arr) => {
+                const indices = [...Array(arr.length).keys()]
+                for (let i = 0; i < indices.length; i++) {
+                    const j = Math.floor(Math.random() * indices.length)
+                    ;[indices[i], indices[j]] = [indices[j], indices[i]]
+                }
+                return indices.map(i => arr[i])
+            }
+
+            const generateRandomIndices = (size, max) => {
+                const result = []
+                for (let i = 0; i < size; i++) { result.push(Math.floor(Math.random() * max)) }
+                return result
+            }
+
+            const debounce = (fn, delay) => {
+                let timer = null
+                return (...args) => {
+                    if (timer) clearTimeout(timer)
+                    timer = setTimeout(() => fn(...args), delay)
+                }
+            }
+
+            return { shuffleArray, generateRandomIndices, debounce }
+        })()
+
+        // ============================================
+        // 主应用逻辑
+        // ============================================
+        const App = (() => {
+            const appVersion = "1.0.0"
+            let config = {}
+            let compiledKeyBindings = []
+
+            const modeConfigs = [
+                { name: "sequential", label: "顺序单次", handler: (words) => words },
+                { name: "shuffled", label: "乱序单次", handler: (words) => Utils.shuffleArray(words) },
+                { name: "repeated", label: "乱序重复", handler: (words) => Utils.generateRandomIndices(SessionStore.get("totalCount", 120), words.length).map(i => words[i]) }
+            ]
+
+            // 获取DOM元素
+            const getEl = (id) => document.getElementById(id)
+
+            // 清理资源
+            const cleanup = () => {
+                AppState.reset()
+            }
+
+            // 编译快捷键
+            const compileKeyBindings = () => {
+                compiledKeyBindings = []
+                const bindings = config.key_bindings || []
+                for (const binding of bindings) {
+                    const key = binding.key.toLowerCase().replace(/\s+/g, '')
+                    const parts = key.split('+')
+                    const modifiers = parts.filter(p => ['ctrl', 'alt', 'shift', 'meta'].includes(p))
+                    const keyPart = parts.find(p => !['ctrl', 'alt', 'shift', 'meta'].includes(p))
+                    if (keyPart) {
+                        compiledKeyBindings.push({ modifiers, keyPart, command: binding.command })
+                    }
+                }
+            }
+
+            // 初始化快捷键
+            const initKeyBindings = () => {
+                compileKeyBindings()
+                const handler = (e) => {
+                    for (const binding of compiledKeyBindings) {
+                        const ctrlMatch = binding.modifiers.includes('ctrl') ? e.ctrlKey : !e.ctrlKey
+                        const altMatch = binding.modifiers.includes('alt') ? e.altKey : !e.altKey
+                        const shiftMatch = binding.modifiers.includes('shift') ? e.shiftKey : !e.shiftKey
+                        const metaMatch = binding.modifiers.includes('meta') ? e.metaKey : !e.metaKey
+                        const keyMatch = e.key.toLowerCase() === binding.keyPart
+
+                        if (ctrlMatch && altMatch && shiftMatch && metaMatch && keyMatch) {
+                            e.preventDefault()
+                            if (binding.command === 'tab_reload') {
+                                startPractice(AppState.get('curTab'))
+                            }
+                            break
+                        }
+                    }
+                }
+                document.addEventListener('keydown', handler)
+                AppState.addCleanup(() => document.removeEventListener('keydown', handler))
+            }
+
+            // 更新速度显示
+            const updateSpeedDisplay = () => {
+                const timer = setTimeout(updateSpeedDisplay, 500)
+                AppState.set('speedTimer', timer)
+
+                const wordCount = AppState.get('wordCount')
+                if (wordCount > 0) {
+                    const speed = wordCount * 60 * 1000 / (new Date().getTime() - AppState.get('startTime'))
+                    DOMRefs.get('speedLabel').textContent = `速度：${speed.toFixed(2)}字/分`
+                }
+            }
+
+            // 启动计时器
+            const startTimer = () => {
+                if (AppState.get('speedTimer') === null) {
+                    AppState.set('startTime', new Date().getTime())
+                    updateSpeedDisplay()
+                }
+            }
+
+            // 重置计时器
+            const resetTimer = () => {
+                const timer = AppState.get('speedTimer')
+                if (timer !== null) {
+                    clearTimeout(timer)
+                    AppState.set('speedTimer', null)
+                }
+            }
+
+            // 更新占位符
+            const updatePlaceholder = () => {
+                const curInputIndex = AppState.get('curInputIndex')
+                const word = getEl(`word${curInputIndex}`)
+                if (word) {
+                    const showHint = SessionStore.get('showHint', true)
+                    DOMRefs.get('userInput').setAttribute("placeholder", showHint ? word.getAttribute("key") : "")
+                }
+            }
+
+            // 获取当前单词
+            const getCurrentWord = () => {
+                const curInputIndex = AppState.get('curInputIndex')
+                const curInputMax = AppState.get('curInputMax')
+                if (curInputIndex >= curInputMax) return null
+                return getEl(`word${curInputIndex}`)
+            }
+
+            // 根据范围获取单词
+            const getWordsByRange = (beg, end) => {
+                const words = []
+                for (let i = beg; i < end; i++) {
+                    const objs = config.items[i]
+                    for (const key in objs) {
+                        objs[key].forEach(code => words.push({ key, code }))
+                    }
+                }
+                return words
+            }
+
+            // 加载下一批
+            const loadNextBatch = () => {
+                const totalWords = AppState.get('totalWords')
+                const totalIndex = AppState.get('totalIndex')
+                const lastCount = totalWords.length - totalIndex
+                if (lastCount <= 0) return false
+
+                const oneTimeCount = SessionStore.get('oneTimeCount', 30)
+                const wordNeed = Math.min(lastCount, oneTimeCount)
+                AppState.set('curInputMax', wordNeed)
+                AppState.set('curInputIndex', 0)
+
+                const rawArea = DOMRefs.get('rawArea')
+                rawArea.innerHTML = ''
+
+                totalWords.slice(totalIndex, totalIndex + wordNeed).forEach((word, idx) => {
+                    const span = document.createElement("span")
+                    span.textContent = word.code
+                    span.setAttribute("key", word.key)
+                    span.id = `word${idx}`
+                    span.style.color = "var(--text-tertiary)"
+                    rawArea.appendChild(span)
+                })
+
+                AppState.set('totalIndex', totalIndex + wordNeed)
+                updatePlaceholder()
+                return true
+            }
+
+            // 处理输入
+            const handleInput = () => {
+                const curInputMax = AppState.get('curInputMax')
+                const curInputIndex = AppState.get('curInputIndex')
+
+                if (curInputIndex >= curInputMax) return
+
+                let inputTimer = AppState.get('inputTimer')
+                if (inputTimer) clearTimeout(inputTimer)
+
+                inputTimer = setTimeout(() => {
+                    const word = getCurrentWord()
+                    if (!word) {
+                        AppState.set('inputTimer', null)
+                        return
+                    }
+
+                    const key = word.getAttribute("key")
+                    const userInput = DOMRefs.get('userInput')
+                    const val = userInput.value
+
+                    if (val.length < key.length) {
+                        AppState.set('inputTimer', null)
+                        return
+                    }
+
+                    if (val.toLowerCase() === key) {
+                        startTimer()
+                        AppState.set('curInputIndex', curInputIndex + 1)
+                        AppState.set('wordCount', AppState.get('wordCount') + 1)
+
+                        const totalWords = AppState.get('totalWords')
+                        DOMRefs.get('progressLabel').textContent = `\t进度：${AppState.get('wordCount')}/${totalWords.length}字`
+                        word.style.color = "var(--text-primary)"
+                        userInput.value = ""
+                        updatePlaceholder()
+                    } else {
+                        word.style.color = "var(--error)"
+                        userInput.value = ""
+                        userInput.setAttribute("placeholder", key)
+                    }
+
+                    AppState.set('inputTimer', null)
+
+                    if (AppState.get('curInputIndex') >= AppState.get('curInputMax')) {
+                        if (!loadNextBatch()) {
+                            userInput.setAttribute("disabled", "true")
+                            resetTimer()
+                        }
+                    }
+                }, 50)
+
+                AppState.set('inputTimer', inputTimer)
+            }
+
+            // 初始化DOM引用
+            const initDomReferences = () => {
+                const refs = DOMRefs.init()
+                const userInput = refs.userInput
+
+                userInput.oninput = handleInput
+
+                const oneTimeCount = getEl("oneTimeCount")
+                const totalCount = getEl("totalCount")
+
+                oneTimeCount.addEventListener('change', () => startPractice(AppState.get('curTab')))
+                totalCount.addEventListener('change', () => startPractice(AppState.get('curTab')))
+
+                // 点击聚焦
+                const clickHandler = (e) => {
+                    if (userInput && document.activeElement !== userInput &&
+                        e.target.id !== 'oneTimeCount' &&
+                        e.target.id !== 'totalCount') {
+                        userInput.focus({ preventScroll: true })
+                    }
+                }
+                document.addEventListener('click', clickHandler)
+                AppState.addCleanup(() => document.removeEventListener('click', clickHandler))
+            }
+
+            // 更新标签样式
+            const updateTabStyles = (activateIdx) => {
+                document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"))
+                if (activateIdx !== null) {
+                    getEl(`tab${activateIdx}`).classList.add("active")
+                }
+            }
+
+            // 切换输入区域
+            const toggleInputArea = (val) => {
+                const contentCard = getEl("content")
+                contentCard.style.display = val ? "flex" : "none"
+                DOMRefs.get('userInput').value = ""
+            }
+
+            // 显示模板
+            const showTemplate = (templateId) => {
+                const mainEl = document.querySelector("main")
+                if (templateId === "help-template") {
+                    mainEl.innerHTML = config.help || ''
+                    return
+                }
+
+                const template = getEl(templateId)
+                if (!template) {
+                    console.error('Template not found:', templateId)
+                    return
+                }
+
+                const clone = template.content.cloneNode(true)
+
+                if (templateId === "practice-template") {
+                    const radioGroup = clone.querySelector(".radio-group")
+                    if (radioGroup) {
+                        radioGroup.innerHTML = ""
+                        const savedIdx = SessionStore.get('radioMode', 0)
+                        for (let i = 0; i < modeConfigs.length; i++) {
+                            const label = document.createElement("label")
+                            const input = document.createElement("input")
+                            input.type = "radio"
+                            input.name = "radiobutton"
+                            input.checked = (i === savedIdx)
+                            input.onclick = () => {
+                                SessionStore.set('radioMode', i)
+                                startPractice(AppState.get('curTab'))
+                            }
+                            label.appendChild(input)
+                            label.appendChild(document.createTextNode(modeConfigs[i].label))
+                            radioGroup.appendChild(label)
+                        }
+                    }
+
+                    const hintCheckbox = clone.querySelector("#showHint")
+                    if (hintCheckbox) {
+                        hintCheckbox.checked = SessionStore.get('showHint', true)
+                        hintCheckbox.onchange = (e) => {
+                            SessionStore.set('showHint', e.target.checked)
+                            updatePlaceholder()
+                        }
+                    }
+
+                    const oneTimeCountInput = clone.querySelector("#oneTimeCount")
+                    if (oneTimeCountInput) {
+                        oneTimeCountInput.value = SessionStore.get('oneTimeCount', 30)
+                        oneTimeCountInput.onchange = (e) => SessionStore.set('oneTimeCount', e.target.value)
+                    }
+
+                    const totalCountInput = clone.querySelector("#totalCount")
+                    if (totalCountInput) {
+                        totalCountInput.value = SessionStore.get('totalCount', 120)
+                        totalCountInput.onchange = (e) => SessionStore.set('totalCount', e.target.value)
+                    }
+                }
+
+                mainEl.innerHTML = ""
+                mainEl.appendChild(clone)
+            }
+
+            // 初始化标签
+            const initTabs = () => {
+                const nav = document.querySelector(".nav-tabs")
+                nav.querySelectorAll(".tab").forEach(t => t.remove())
+
+                config.tabs.forEach((tabConfig, i) => {
+                    const btn = document.createElement("button")
+                    btn.className = "tab"
+                    btn.id = `tab${i}`
+                    btn.textContent = tabConfig.label
+                    btn.onclick = () => {
+                        if (tabConfig.type === "help") {
+                            displayHelp()
+                        } else {
+                            startPractice(i)
+                        }
+                    }
+                    nav.appendChild(btn)
+                })
+            }
+
+            // 显示帮助
+            const displayHelp = () => {
+                resetTimer()
+                updateTabStyles(0)
+                const mainEl = document.querySelector("main")
+                mainEl.innerHTML = config.help || ''
+            }
+
+            // 开始练习
+            const startPractice = (val) => {
+                cleanup()
+                updateTabStyles(val)
+                showTemplate("practice-template")
+                initDomReferences()
+                toggleInputArea(true)
+
+                const rawArea = DOMRefs.get('rawArea')
+                const userInput = DOMRefs.get('userInput')
+                const speedLabel = DOMRefs.get('speedLabel')
+                const progressLabel = DOMRefs.get('progressLabel')
+
+                rawArea.style.fontFamily = AppState.get('rawAreaFonts') || 'inherit'
+                userInput.removeAttribute("disabled")
+
+                updatePlaceholder()
+                userInput.focus({ preventScroll: true })
+
+                AppState.set('totalIndex', 0)
+                AppState.set('wordCount', 0)
+                AppState.set('curTab', val)
+                speedLabel.textContent = "速度：0.00字/分"
+
+                const allWords = getWordsByRange(config.tabs[val].beg, config.tabs[val].end)
+                const modeIdx = SessionStore.get('radioMode', 0)
+                AppState.set('totalWords', modeConfigs[modeIdx].handler(allWords))
+
+                loadNextBatch()
+                progressLabel.textContent = `\t进度：0/${AppState.get('totalWords').length}字`
+                resetTimer()
+            }
+
+            // 加载配置
+            const loadConfig = async (text, filePath) => {
+                // 检查缓存
+                if (ConfigCache.isSameConfig(filePath, text)) {
+                    console.log('使用缓存配置')
+                    return true
+                }
+
+                let newConfig
+                try {
+                    newConfig = TOML.parse(text)
+                } catch (err) {
+                    console.error('TOML解析失败:', err)
+                    throw new Error('配置解析失败: ' + err.message)
+                }
+
+                // 验证配置
+                const validation = ConfigValidator.validate(newConfig)
+                if (!validation.valid) {
+                    console.error('配置验证失败:', validation.errors)
+                    throw new Error('配置验证失败:\n' + validation.errors.join('\n'))
+                }
+
+                config = validation.data
+                ConfigCache.set(filePath, text)
+
                 // 设置标题和版本
                 document.title = config.name || '输入法练习工具'
+
                 // 恢复主界面结构
                 document.querySelector('.app-container').innerHTML = `<header class="header">
                     <h1 class="logo">${config.name || '输入法练习工具'}</h1>
@@ -48,443 +735,62 @@
                 </header>
                 <nav class="nav-tabs"></nav>
                 <main></main>`
-                // 重置变量
-                speedTimer = null; wordCount = 0; startTime = 0
-                curInputMax = 0; curInputIndex = 0; curTab = 0
-                totalWords = []; totalIndex = 0
+
+                // 初始化
                 initTabs()
                 initKeyBindings()
                 displayHelp()
+
                 // 加载字体
-                await loadFonts()
-            } catch (err) {
-                console.error('加载配置失败:', err, err.stack)
-                alert('加载配置失败: ' + err.message + '\n请查看控制台获取详情')
+                try {
+                    const fontFamily = await FontLoader.loadAll(config.fonts)
+                    AppState.set('rawAreaFonts', fontFamily)
+                } catch (err) {
+                    console.error('字体加载失败:', err)
+                }
+
+                return true
             }
-        }
 
-        const initDomReferences = () => {
-            rawArea = document.getElementById("rawArea")
-            userInput = document.getElementById("userInput")
-            speedLabel = document.getElementById("speedLabel")
-            progressLabel = document.getElementById("progressLabel")
-            userInput.oninput = handleInput
+            // 选择配置
+            const onConfigSelected = async (e) => {
+                const file = e.target.files[0]
+                if (!file) return
 
-            const oneTimeCount = document.getElementById("oneTimeCount")
-            const totalCount = document.getElementById("totalCount")
-            oneTimeCount.addEventListener('change', () => startPractice(curTab))
-            totalCount.addEventListener('change', () => startPractice(curTab))
-
-            document.addEventListener('click', function (e) {
-                if (userInput && document.activeElement !== userInput &&
-                    e.target.id !== 'oneTimeCount' &&
-                    e.target.id !== 'totalCount') {
-                    userInput.focus({ preventScroll: true })
-                }
-            })
-        }
-
-        let compiledKeyBindings = []
-
-        const compileKeyBindings = () => {
-            compiledKeyBindings = []
-            if (!config.key_bindings || !Array.isArray(config.key_bindings)) return
-            for (const binding of config.key_bindings) {
-                const key = binding.key.toLowerCase().replace(/\s+/g, '')
-                const parts = key.split('+')
-                const modifiers = parts.filter(p => ['ctrl', 'alt', 'shift', 'meta'].includes(p))
-                const keyPart = parts.find(p => !['ctrl', 'alt', 'shift', 'meta'].includes(p))
-                compiledKeyBindings.push({ modifiers, keyPart, command: binding.command })
-            }
-        }
-
-        const initKeyBindings = () => {
-            compileKeyBindings()
-            document.addEventListener('keydown', (e) => {
-                for (const binding of compiledKeyBindings) {
-                    const ctrlMatch = binding.modifiers.includes('ctrl') ? e.ctrlKey : !e.ctrlKey
-                    const altMatch = binding.modifiers.includes('alt') ? e.altKey : !e.altKey
-                    const shiftMatch = binding.modifiers.includes('shift') ? e.shiftKey : !e.shiftKey
-                    const metaMatch = binding.modifiers.includes('meta') ? e.metaKey : !e.metaKey
-                    const keyMatch = e.key.toLowerCase() === binding.keyPart
-
-                    if (ctrlMatch && altMatch && shiftMatch && metaMatch && keyMatch) {
-                        e.preventDefault()
-                        switch (binding.command) {
-                            case 'tab_reload':
-                                startPractice(curTab)
-                                break
-                        }
-                        break
-                    }
-                }
-            })
-        }
-
-        const main = () => {
-            document.querySelector('.app-container').innerHTML = `<div class="launch-container">
-                <div class="launch-icon">⌨️</div>
-                <h1 class="launch-title">输入法练习工具</h1>
-                <p class="launch-subtitle">选择配置文件开始练习</p>
-                <div class="launch-select">
-                    <input type="file" id="configFile" accept=".toml">
-                    <label for="configFile" class="file-label">选择文件</label>
-                </div>
-            </div>`
-            document.getElementById('configFile').addEventListener('change', onConfigSelected)
-        }
-
-        const showTemplate = (templateId) => {
-            const mainEl = document.querySelector("main")
-            if (templateId === "help-template") {
-                mainEl.innerHTML = config.help
-                return
-            }
-            const template = document.getElementById(templateId)
-            if (!template) {
-                console.error('Template not found:', templateId)
-                return
-            }
-            const clone = template.content.cloneNode(true)
-
-            if (templateId === "practice-template") {
-                const radioGroup = clone.querySelector(".radio-group")
-                if (radioGroup) {
-                    radioGroup.innerHTML = ""
-                    const savedIdx = getModeIndex()
-                    for (let i = 0; i < modeConfigs.length; i++) {
-                        const label = document.createElement("label")
-                        const input = document.createElement("input")
-                        input.type = "radio"
-                        input.name = "radiobutton"
-                        input.checked = (i === savedIdx)
-                        input.onclick = () => {
-                            setModeIndex(i)
-                            startPractice(curTab)
-                        }
-                        label.appendChild(input)
-                        label.appendChild(document.createTextNode(modeConfigs[i].label))
-                        radioGroup.appendChild(label)
-                    }
-                }
-
-                const hintCheckbox = clone.querySelector("#showHint")
-                if (hintCheckbox) {
-                    hintCheckbox.checked = getShowHint()
-                    hintCheckbox.onchange = (e) => {
-                        setShowHint(e.target.checked)
-                        updatePlaceholder()
-                    }
-                }
-
-                const oneTimeCountInput = clone.querySelector("#oneTimeCount")
-                if (oneTimeCountInput) {
-                    oneTimeCountInput.value = getOneTimeCount()
-                    oneTimeCountInput.onchange = (e) => setOneTimeCount(e.target.value)
-                }
-
-                const totalCountInput = clone.querySelector("#totalCount")
-                if (totalCountInput) {
-                    totalCountInput.value = getTotalCount()
-                    totalCountInput.onchange = (e) => setTotalCount(e.target.value)
+                try {
+                    const text = await file.text()
+                    await loadConfig(text, file.name)
+                } catch (err) {
+                    console.error('加载配置失败:', err, err.stack)
+                    alert('加载配置失败: ' + err.message + '\n请查看控制台获取详情')
                 }
             }
 
-            mainEl.innerHTML = ""
-            mainEl.appendChild(clone)
-        }
-
-        const displayHelp = () => {
-            resetTimer()
-            updateTabStyles(0)
-            const mainEl = document.querySelector("main")
-            mainEl.innerHTML = config.help
-        }
-
-        const modeConfigs = [
-            { name: "sequential", label: "顺序单次", handler: (words) => words },
-            { name: "shuffled", label: "乱序单次", handler: (words) => shuffleWords(words) },
-            { name: "repeated", label: "乱序重复", handler: (words) => generateRandomIndices(getSettingValue("totalCount"), words.length).map(i => words[i]) },
-        ]
-
-        const initTabs = () => {
-            const nav = document.querySelector(".nav-tabs")
-            nav.querySelectorAll(".tab").forEach(t => t.remove())
-
-            config.tabs.forEach((tabConfig, i) => {
-                const btn = document.createElement("button")
-                btn.className = "tab"
-                btn.id = `tab${i}`
-                btn.textContent = tabConfig.label
-                btn.onclick = () => tabConfig.type === "help" ? displayHelp() : startPractice(i)
-                nav.appendChild(btn)
-            })
-        }
-
-        const getModeIndex = () => parseInt(sessionStorage.getItem("radioMode") || "0")
-
-        const setModeIndex = (idx) => sessionStorage.setItem("radioMode", idx)
-
-        const getShowHint = () => sessionStorage.getItem("showHint") !== "false"
-
-        const setShowHint = (val) => sessionStorage.setItem("showHint", val)
-
-        const getOneTimeCount = () => parseInt(sessionStorage.getItem("oneTimeCount") || "30")
-
-        const setOneTimeCount = (val) => sessionStorage.setItem("oneTimeCount", val)
-
-        const getTotalCount = () => parseInt(sessionStorage.getItem("totalCount") || "120")
-
-        const setTotalCount = (val) => sessionStorage.setItem("totalCount", val)
-
-        const getCurrentWord = () => {
-            if (curInputIndex >= curInputMax) return null
-            return document.getElementById(`word${curInputIndex}`)
-        }
-
-        const updatePlaceholder = () => {
-            const word = getCurrentWord()
-            if (!word) return
-            userInput.setAttribute("placeholder", getShowHint() ? word.getAttribute("key") : "")
-        }
-
-        const startPractice = (val) => {
-            updateTabStyles(val)
-            showTemplate("practice-template")
-            initDomReferences()
-            toggleInputArea(true)
-
-            rawArea.style.fontFamily = rawAreaFonts
-            userInput.removeAttribute("disabled")
-
-            updatePlaceholder()
-
-            userInput.focus({ preventScroll: true })
-            totalIndex = 0; wordCount = 0; curTab = val
-            speedLabel.textContent = "速度：0.00字/分"
-
-            const allWords = getWordsByRange(config.tabs[val].beg, config.tabs[val].end)
-            const modeIdx = getModeIndex()
-            totalWords = modeConfigs[modeIdx].handler(allWords)
-
-            loadNextBatch()
-            progressLabel.textContent = `\t进度：0/${totalWords.length}字`
-            resetTimer()
-        }
-
-        const updateSpeedDisplay = () => {
-            speedTimer = setTimeout(updateSpeedDisplay, 500)
-            if (wordCount > 0) {
-                const speed = wordCount * 60 * 1000 / (new Date().getTime() - startTime)
-                speedLabel.textContent = `速度：${speed.toFixed(2)}字/分`
-            }
-        }
-
-        const startTimer = () => {
-            if (speedTimer === null) {
-                startTime = new Date().getTime()
-                updateSpeedDisplay()
-            }
-        }
-
-        const resetTimer = () => {
-            if (speedTimer !== null) {
-                clearTimeout(speedTimer)
-                speedTimer = null
-            }
-        }
-
-        const getWordsByRange = (beg, end) => {
-            const words = []
-            for (let i = beg; i < end; i++) {
-                const objs = config.items[i]
-                for (const key in objs) {
-                    objs[key].forEach(code => words.push({ key, code }))
-                }
-            }
-            return words
-        }
-
-        const loadNextBatch = () => {
-            const lastCount = totalWords.length - totalIndex
-            if (lastCount <= 0) return false
-
-            const wordNeed = Math.min(lastCount, getSettingValue("oneTimeCount"))
-            curInputMax = wordNeed; curInputIndex = 0
-            clearDisplayArea()
-
-            totalWords.slice(totalIndex, totalIndex + wordNeed).forEach((word, idx) => {
-                const span = document.createElement("span")
-                span.textContent = word.code
-                span.setAttribute("key", word.key)
-                span.id = `word${idx}`
-                span.style.color = "var(--text-tertiary)"
-                rawArea.appendChild(span)
-            })
-            totalIndex += wordNeed
-            updatePlaceholder()
-            return true
-        }
-
-        const getSettingValue = (id) => parseInt(document.getElementById(id).value)
-
-        const shuffleWords = (arr) => {
-            const indices = [...Array(arr.length).keys()]
-            for (let i = 0; i < indices.length; i++) {
-                const j = Math.floor(Math.random() * indices.length)
-                    ;[indices[i], indices[j]] = [indices[j], indices[i]]
-            }
-            return indices.map(i => arr[i])
-        }
-
-        const generateRandomIndices = (size, max) => {
-            const result = []
-            for (let i = 0; i < size; i++) { result.push(Math.floor(Math.random() * max)) }
-            return result
-        }
-
-        const handleInput = () => {
-            if (curInputIndex >= curInputMax) return
-            if (inputTimer) clearTimeout(inputTimer)
-
-            inputTimer = setTimeout(() => {
-                const word = document.getElementById(`word${curInputIndex}`)
-                const key = word.getAttribute("key")
-                const val = userInput.value
-
-                if (val.length < key.length) { inputTimer = null; return }
-
-                if (val.toLowerCase() === key) {
-                    startTimer()
-                    curInputIndex++; wordCount++
-                    progressLabel.textContent = `\t进度：${wordCount}/${totalWords.length}字`
-                    word.style.color = "var(--text-primary)"
-                    userInput.value = ""
-                    updatePlaceholder()
-                } else {
-                    word.style.color = "var(--error)"
-                    userInput.value = ""
-                    userInput.setAttribute("placeholder", key)
-                }
-                inputTimer = null
-
-                if (curInputIndex >= curInputMax) {
-                    if (!loadNextBatch()) {
-                        userInput.setAttribute("disabled", "true")
-                        resetTimer()
-                    }
-                }
-            }, 50)
-        }
-
-        const updateTabStyles = (activateIdx) => {
-            document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"))
-            if (activateIdx !== null) {
-                document.getElementById(`tab${activateIdx}`).classList.add("active")
-            }
-        }
-
-        const toggleInputArea = (val) => {
-            const contentCard = document.getElementById("content")
-            contentCard.style.display = val ? "flex" : "none"
-            userInput.value = ""
-        }
-
-        const clearDisplayArea = () => {
-            rawArea.innerHTML = ''
-        }
-
-        // 字体加载功能
-        const loadFonts = async () => {
-            const loadedFontNames = []
-            for (let i = 0; i < config.fonts.length; i++) {
-                const font = config.fonts[i]
-                if (!font.name) continue
-
-                const isSystemFont = await checkSystemFont(font.name)
-                if (isSystemFont) {
-                    loadedFontNames.push(font.name)
-                    continue
-                }
-
-                if (font.base64 && font.base64.length > 0 && font.type) {
-                    if (await loadFontFromBase64(font.name, font.base64, font.type)) {
-                        loadedFontNames.push(font.name)
-                        continue
-                    }
-                }
-
-                if (font.file && font.file.length > 0) {
-                    if (await loadFontFromFile(font.name, font.file)) {
-                        loadedFontNames.push(font.name)
-                    }
-                }
+            // 显示启动界面
+            const showLaunchScreen = () => {
+                document.querySelector('.app-container').innerHTML = `<div class="launch-container">
+                    <div class="launch-icon">⌨️</div>
+                    <h1 class="launch-title">输入法练习工具</h1>
+                    <p class="launch-subtitle">选择配置文件开始练习</p>
+                    <div class="launch-select">
+                        <input type="file" id="configFile" accept=".toml">
+                        <label for="configFile" class="file-label">选择文件</label>
+                    </div>
+                </div>`
+                getEl('configFile').addEventListener('change', onConfigSelected)
             }
 
-            const cssFontFamily = getComputedStyle(document.getElementById("font-container")).fontFamily
-            const fallbackFonts = cssFontFamily
-                .split(',')
-                .map(f => f.trim().replace(/^['"]|['"]$/g, ''))
-                .filter(f => f && !loadedFontNames.includes(f))
-                .join("', '")
-
-            if (loadedFontNames.length > 0) {
-                rawAreaFonts = "'" + loadedFontNames.join("', '") + "', '" + fallbackFonts + "'"
-            } else {
-                rawAreaFonts = "'" + fallbackFonts + "'"
+            // 初始化
+            const init = () => {
+                cleanup()
+                showLaunchScreen()
             }
-        }
 
-        // 检查系统字体是否存在
-        const checkSystemFont = (fontName) => {
-            return new Promise((resolve) => {
-                const canvas = document.createElement('canvas')
-                const ctx = canvas.getContext('2d')
-                const testString = 'mmmmmmmmmmlli'
+            return { init }
+        })()
 
-                ctx.font = `72px "${fontName}"`
-                const baselineSize = ctx.measureText(testString).width
-
-                ctx.font = `72px sans-serif`
-                const fallbackSize = ctx.measureText(testString).width
-
-                resolve(baselineSize !== fallbackSize)
-            })
-        }
-
-        // 从 base64 加载字体
-        const loadFontFromBase64 = (fontName, base64, type) => {
-            return new Promise((resolve) => {
-                const fontUrl = `data:font/${type};base64,${base64}`
-                const fontFace = new FontFace(fontName, `url(${fontUrl})`)
-
-                fontFace.load().then((loadedFace) => {
-                    document.fonts.add(loadedFace)
-                    resolve(true)
-                }).catch((err) => {
-                    console.error(`loadFontFromBase64 failed: ${fontName}`, err)
-                    resolve(false)
-                })
-            })
-        }
-
-        // 从本地文件加载字体
-        const loadFontFromFile = (fontName, fileName) => {
-            return new Promise((resolve) => {
-                const fontFace = new FontFace(fontName, `url(${fileName})`)
-                fontFace.load()
-                    .then((loadedFace) => {
-                        document.fonts.add(loadedFace)
-                        resolve(true)
-                    })
-                    .catch((err) => {
-                        console.warn(`字体加载失败（文件可能不存在）: ${fileName}`)
-                        resolve(false)
-                    })
-            })
-        }
-
-        window.addEventListener('load', main)
+        // 启动应用
+        window.addEventListener('load', App.init)
     </script>
     <style>
         :root {
@@ -658,7 +964,7 @@
             font-weight: 500;
         }
 
-        .spinner {
+        .number-input {
             width: 70px;
             padding: 8px 10px;
             border: 2px solid var(--border);
@@ -671,7 +977,7 @@
             font-weight: 500;
         }
 
-        .spinner:focus {
+        .number-input:focus {
             border-color: var(--primary);
             box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
         }
@@ -974,11 +1280,11 @@
             <div class="settings-bar">
                 <div class="setting-group">
                     <label>单次字数</label>
-                    <input id="oneTimeCount" class="spinner" type="number" min="10" max="500" value="30">
+                    <input id="oneTimeCount" class="number-input" type="number" min="10" max="500" value="30">
                 </div>
                 <div class="setting-group">
                     <label>练习总数</label>
-                    <input id="totalCount" class="spinner" type="number" min="10" max="500" value="120">
+                    <input id="totalCount" class="number-input" type="number" min="10" max="500" value="120">
                 </div>
                 <div class="setting-group checkbox-group">
                     <label class="checkbox-label">
