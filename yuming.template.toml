@@ -166,96 +166,82 @@ append_suffix = ' '
 label = '快速入门'
 type = 'help'
 group = '入门'
-beg = 0
-end = 0
+index = []
 
 [[tabs]]
 label = 'BCDFG 键字根'
 type = 'range'
 group = '键位练习'
-beg = 0
-end = 1
+index = [0]
 
 [[tabs]]
 label = 'HJKLM 键字根'
 type = 'range'
 group = '键位练习'
-beg = 1
-end = 2
+index = [1]
 
 [[tabs]]
 label = 'NPQRS 键字根'
 type = 'range'
 group = '键位练习'
-beg = 2
-end = 3
+index = [2]
 
 [[tabs]]
 label = 'TVWXY 键字根'
 type = 'range'
 group = '键位练习'
-beg = 3
-end = 4
+index = [3]
 
 [[tabs]]
 label = '所有字根'
 type = 'range'
 group = '键位练习'
-beg = 0
-end = 4
+index = [0, 1, 2, 3]
 
 [[tabs]]
 label = '两键上屏字'
 type = 'range'
 group = '上屏练习'
-beg = 4
-end = 5
+index = [4]
 
 [[tabs]]
 label = '三键上屏字'
 type = 'range'
 group = '上屏练习'
-beg = 5
-end = 6
+index = [5]
 
 [[tabs]]
 label = '所有上屏字'
 type = 'range'
 group = '上屏练习'
-beg = 4
-end = 6
+index = [4, 5]
 
 [[tabs]]
 label = '所有上屏词'
 type = 'range'
 group = '上屏练习'
-beg = 6
-end = 7
+index = [6]
 
 [[tabs]]
 label = '所有上屏简'
 type = 'range'
 group = '上屏练习'
-beg = 4
-end = 7
+index = [4, 5, 6]
 
 [[tabs]]
 label = '所有空格字'
 type = 'range'
 group = '空格练习'
-beg = 7
-end = 8
+index = [7]
 
 [[tabs]]
 label = '所有空格词'
 type = 'range'
 group = '空格练习'
-beg = 8
-end = 9
+index = [8]
 
 [[tabs]]
 label = '所有空格简'
 type = 'range'
 group = '空格练习'
-beg = 7
-end = 9
+index = [7, 8]

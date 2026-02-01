@@ -69,8 +69,7 @@ type TemplateTab struct {
 	Label string `toml:"label"`
 	Group string `toml:"group"`
 	Type  string `toml:"type"`
-	Beg   int    `toml:"beg"`
-	End   int    `toml:"end"`
+	Index []int  `toml:"index"`
 }
 
 // ExportConfig contains configuration for export operations

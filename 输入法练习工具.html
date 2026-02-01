@@ -264,8 +264,8 @@
                 if (config.tabs) {
                     config.tabs.forEach((tab, i) => {
                         if (!tab.label) errors.push(`tabs[${i}] 缺少 label`)
-                        if (tab.type !== 'help' && (typeof tab.beg !== 'number' || typeof tab.end !== 'number')) {
-                            errors.push(`tabs[${i}] 缺少 beg 或 end`)
+                        if (tab.type !== 'help' && (!Array.isArray(tab.index) || tab.index.length === 0)) {
+                            errors.push(`tabs[${i}] 缺少 index`)
                         }
                         if (typeof tab.group !== 'string') errors.push(`tabs[${i}] group 应为字符串`)
                     })
@@ -461,10 +461,10 @@
                 return getEl(`word${curInputIndex}`)
             }
 
-            // 根据范围获取单词
-            const getWordsByRange = (beg, end) => {
+            // 根据索引列表获取单词
+            const getWordsByIndex = (indices) => {
                 const words = []
-                for (let i = beg; i < end; i++) {
+                for (const i of indices) {
                     const objs = config.items[i]
                     for (const key in objs) {
                         objs[key].forEach(code => words.push({ key, code }))
@@ -820,7 +820,7 @@
                 AppState.set('totalKeystrokes', 0)
                 AppState.set('errorKeystrokes', 0)
 
-                const allWords = getWordsByRange(config.tabs[val].beg, config.tabs[val].end)
+                const allWords = getWordsByIndex(config.tabs[val].index)
                 const modeIdx = SessionStore.get('radioMode', 0)
                 AppState.set('totalWords', modeConfigs[modeIdx].handler(allWords))
 
