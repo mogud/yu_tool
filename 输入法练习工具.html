@@ -217,6 +217,7 @@
                 refs = {
                     rawArea: document.getElementById("rawArea"),
                     userInput: document.getElementById("userInput"),
+                    freeUserInput: document.getElementById("freeUserInput"),
                     speedLabel: document.getElementById("speedLabel"),
                     progressLabel: document.getElementById("progressLabel"),
                     keystrokeSpeedLabel: document.getElementById("keystrokeSpeedLabel"),
@@ -629,7 +630,8 @@
             const toggleInputArea = (val) => {
                 const contentCard = getEl("content")
                 contentCard.style.display = val ? "flex" : "none"
-                DOMRefs.get('userInput').value = ""
+                const userInput = document.getElementById('userInput') || document.getElementById('freeUserInput')
+                if (userInput) userInput.value = ""
             }
 
             // 显示模板
@@ -839,7 +841,9 @@
                 toggleInputArea(true)
 
                 const rawArea = document.getElementById('rawArea') || document.getElementById('freeArea')
-                const userInput = document.getElementById('userInput')
+                const userInput = isFreeType
+                    ? document.getElementById('freeUserInput')
+                    : document.getElementById('userInput')
                 const speedLabel = document.getElementById('speedLabel')
                 const progressLabel = document.getElementById('progressLabel')
                 const keystrokeSpeedLabel = document.getElementById('keystrokeSpeedLabel')
@@ -1008,7 +1012,7 @@
                 currentText = text
 
                 const freeArea = document.getElementById('freeArea')
-                const userInput = document.getElementById('userInput')
+                const userInput = document.getElementById('freeUserInput')
 
                 if (!freeArea || !userInput) {
                     console.error('FreeModule init failed: freeArea or userInput not found')
@@ -1061,7 +1065,7 @@
 
             // 处理用户输入
             const handleInput = () => {
-                const userInput = document.getElementById('userInput')
+                const userInput = document.getElementById('freeUserInput')
                 if (!userInput) return
                 const val = userInput.value
 
@@ -1150,7 +1154,7 @@
 
             // 绑定事件
             const bindEvents = () => {
-                const userInput = document.getElementById('userInput')
+                const userInput = document.getElementById('freeUserInput')
                 if (userInput) {
                     // 输入法组合期间不处理对比
                     let isComposing = false
@@ -1500,6 +1504,10 @@
             flex-direction: column;
         }
 
+        .content-area > * {
+            align-self: stretch;
+        }
+
         .display-area {
             width: 100%;
             min-height: 280px;
@@ -1572,6 +1580,21 @@
         #userInput:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+        }
+
+        #freeUserInput {
+            width: 100%;
+            height: 100%;
+            min-height: 200px;
+            font-size: 1.5rem;
+            padding: 0;
+            line-height: 1.6;
+            border: none;
+            resize: vertical;
+            outline: none;
+            font-family: inherit;
+            background: transparent;
+            color: var(--text-primary);
         }
 
         #font-container {
@@ -1718,7 +1741,6 @@
             transform: translateY(0);
         }
 
-        /* 自由练习模式样式 */
         .free-display-area {
             min-height: 320px;
             font-size: 2rem;
@@ -1726,10 +1748,46 @@
             letter-spacing: 0.1em;
         }
 
+        .free-input-area {
+            margin-top: 24px;
+            display: flex;
+            justify-content: center;
+        }
+
         .free-input {
+            width: 100%;
+            min-height: 200px;
             font-size: 1.5rem;
-            padding: 20px 28px;
-            letter-spacing: 0.2em;
+            padding: 16px 20px;
+            line-height: 1.6;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            resize: vertical;
+            outline: none;
+            font-family: inherit;
+            box-sizing: border-box;
+            background: var(--bg);
+            color: var(--text-primary);
+        }
+
+        .free-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .free-input {
+            width: 100%;
+            height: 100%;
+            min-height: 200px;
+            font-size: 1.5rem;
+            padding: 0;
+            line-height: 1.6;
+            border: none;
+            resize: vertical;
+            outline: none;
+            font-family: inherit;
+            background: transparent;
+            color: var(--text-primary);
         }
     </style>
 </head>
@@ -1779,8 +1837,8 @@
             </div>
             <div class="content-area" id="content">
                 <div class="display-area free-display-area" id="freeArea"></div>
-                <div class="input-area">
-                    <input id="userInput" class="free-input" placeholder="自由输入">
+                <div class="input-area free-input-area">
+                    <textarea id="freeUserInput" class="free-input" placeholder="自由输入" rows="3"></textarea>
                 </div>
             </div>
         </div>
