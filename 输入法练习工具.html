@@ -365,6 +365,8 @@
                     const isActive = groupName === activeGroup ? 'active' : ''
                     html += `<button class="group-tab ${isActive}" data-group="${groupName}">${groupName}</button>`
                 })
+                // 添加固定在最右边的 free tab
+                html += `<button class="tab free-tab" id="tab-free">自由练习</button>`
                 html += '</div>'
                 return html
             }
@@ -431,9 +433,20 @@
             }
 
             // 渲染自由练习模板
-            const renderFreeTemplate = (sessionStore) => {
-                const totalCount = sessionStore.get('totalCount', 120)
+            const renderFreeTemplate = (textItems = []) => {
+                let optionsHtml = textItems.map((item, idx) =>
+                    `<option value="${idx}">${item.name}</option>`
+                ).join('')
+
                 return `<div class="card practice-card">
+                    <div class="settings-bar">
+                        <div class="setting-group">
+                            <label>选择文章</label>
+                            <select id="freeTextSelect" class="text-select">
+                                ${optionsHtml}
+                            </select>
+                        </div>
+                    </div>
                     <div class="stats-bar">
                         <span id="freeSpeedLabel"></span>
                         <span id="freeKeystrokeSpeedLabel">击键：0.00次/秒</span>
@@ -475,6 +488,7 @@
                 version: { type: 'string', default: '-' },
                 config_version: { type: 'string', default: '-' },
                 tabs: { type: 'array', required: true },
+                text: { type: 'array', required: true },
                 items: { type: 'array', required: true },
                 help: { type: 'array', default: [] },
                 fonts: { type: 'array', default: [] },
@@ -495,6 +509,19 @@
                 if (!config.items || !Array.isArray(config.items)) {
                     errors.push('缺少 items 配置')
                 }
+                const textItems = config.text || []
+                if (!Array.isArray(textItems) || textItems.length === 0) {
+                    errors.push('缺少 text 配置')
+                } else {
+                    textItems.forEach((item, i) => {
+                        if (!item.name || typeof item.name !== 'string') {
+                            errors.push(`text[${i}] 缺少 name`)
+                        }
+                        if (!item.content || typeof item.content !== 'string') {
+                            errors.push(`text[${i}] 缺少 content`)
+                        }
+                    })
+                }
 
                 // 验证 tabs 结构
                 if (config.tabs) {
@@ -506,11 +533,6 @@
                                 errors.push(`tabs[${i}] help 类型的 index 应为长度为 1 的数组`)
                             } else if (tab.index[0] < 0 || tab.index[0] >= (config.help ? config.help.length : 0)) {
                                 errors.push(`tabs[${i}] index 超出 help 数组范围`)
-                            }
-                        } else if (tab.type === 'free') {
-                            // free 类型需要 text 属性来指定练习文章
-                            if (!tab.text || typeof tab.text !== 'string') {
-                                errors.push(`tabs[${i}] free 类型缺少 text（练习文章内容）`)
                             }
                         } else if (!Array.isArray(tab.index) || tab.index.length === 0) {
                             errors.push(`tabs[${i}] 缺少 index`)
@@ -839,7 +861,11 @@
             const updateTabStyles = (activateIdx) => {
                 document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"))
                 if (activateIdx !== null) {
-                    UIComponents.get(`tab${activateIdx}`).classList.add("active")
+                    if (activateIdx === 'free') {
+                        document.getElementById('tab-free').classList.add("active")
+                    } else {
+                        UIComponents.get(`tab${activateIdx}`).classList.add("active")
+                    }
                 }
             }
 
@@ -855,7 +881,7 @@
 
             // 显示模板
 
-                        const showTemplate = (templateId, helpIndex = 0) => {
+                        const showTemplate = (templateId, helpIndex = 0, textItems = []) => {
 
                             const mainEl = document.querySelector("main")
 
@@ -877,7 +903,7 @@
 
                             } else if (templateId === "free-template") {
 
-                                content = UIComponents.renderFreeTemplate(SessionStore)
+                                content = UIComponents.renderFreeTemplate(textItems)
 
                             }
 
@@ -979,8 +1005,14 @@
                     groups[groupName].push({ ...tabConfig, index: i })
                 })
 
-                // 渲染分组导航
+                // 渲染分组导航（包含 free tab）
                 nav.innerHTML = UIComponents.renderGroupNav(groups, null)
+
+// 绑定 free tab 点击事件
+const freeTab = document.getElementById('tab-free')
+if (freeTab) {
+    freeTab.onclick = () => startPractice('free')
+}
 
                 // 添加当前分组的 tabs 容器
                 const tabContainer = document.createElement("div")
@@ -1027,8 +1059,6 @@
                         btn.onclick = () => {
                             if (tab.type === "help") {
                                 displayHelp(tab.index[0])
-                            } else if (tab.type === "free") {
-                                startPractice(tab.index, 'free')
                             } else {
                                 startPractice(tab.index)
                             }
@@ -1041,8 +1071,6 @@
                     const firstTab = tabs[0]
                     if (firstTab.type === "help") {
                         displayHelp(firstTab.index[0])
-                    } else if (firstTab.type === "free") {
-                        startPractice(firstTab.index, 'free')
                     } else {
                         startPractice(firstTab.index)
                     }
@@ -1073,12 +1101,13 @@
                 cleanup()
                 updateTabStyles(val)
 
-                const curTabConfig = config.tabs[val]
-                const isFreeType = type === 'free' || (curTabConfig && curTabConfig.type === 'free')
+                // 判断是否为 free 模式
+                const isFreeType = val === 'free'
 
                 // 根据类型显示不同的模板
                 if (isFreeType) {
-                    showTemplate("free-template")
+                    const textItems = (config.text || []).map(item => ({ name: item.name, content: item.content }))
+                    showTemplate("free-template", 0, textItems)
                 } else {
                     showTemplate("practice-template")
                 }
@@ -1118,9 +1147,10 @@
 
                 // 判断是否为 free 类型
                 if (isFreeType) {
-                    // 使用自由练习模块，从 text 属性获取文章内容
-                    const freeText = curTabConfig.text || ''
-                    FreeModule.init(freeText)
+                    // 使用自由练习模块，从 config.text 获取文章内容
+                    const textItems = (config.text || []).map(item => ({ name: item.name, content: item.content }))
+                    const freeText = textItems.length > 0 ? textItems[0].content : ''
+                    FreeModule.init(freeText, textItems)
                     FreeModule.bindEvents()
                 } else {
                     // 原来的字根练习逻辑
@@ -1144,13 +1174,16 @@
                     startMetricsTracking(elementIds)
                 }
 
-                // 切换到当前 tab 所在的分组
-                if (curTabConfig) {
-                    const groupName = curTabConfig.group || '默认'
-                    const groupTab = document.querySelector(`.group-tab[data-group="${groupName}"]`)
-                    if (groupTab) {
-                        document.querySelectorAll(".group-tab").forEach(t => t.classList.remove("active"))
-                        groupTab.classList.add("active")
+                // 切换到当前 tab 所在的分组（free 模式不切换分组）
+                if (!isFreeType) {
+                    const curTabConfig = config.tabs[val]
+                    if (curTabConfig) {
+                        const groupName = curTabConfig.group || '默认'
+                        const groupTab = document.querySelector(`.group-tab[data-group="${groupName}"]`)
+                        if (groupTab) {
+                            document.querySelectorAll(".group-tab").forEach(t => t.classList.remove("active"))
+                            groupTab.classList.add("active")
+                        }
                     }
                 }
             }
@@ -1257,11 +1290,12 @@
             }
 
             // 初始化自由练习
-            const init = (text) => {
+            const init = (text, textItems = []) => {
                 currentText = text
 
                 const freeArea = document.getElementById('freeArea')
                 const userInput = document.getElementById('freeUserInput')
+                const textSelect = document.getElementById('freeTextSelect')
 
                 if (!freeArea || !userInput) {
                     console.error('FreeModule init failed: freeArea or userInput not found')
@@ -1298,6 +1332,19 @@
                 if (speedLabel) speedLabel.textContent = ""
                 if (keystrokeSpeedLabel) keystrokeSpeedLabel.textContent = "击键：0.00次/秒"
                 if (accuracyLabel) accuracyLabel.textContent = "键准：100%"
+
+                // 绑定下拉框选择事件
+                if (textSelect && textItems.length > 0) {
+                    textSelect.onchange = (e) => {
+                        const idx = parseInt(e.target.value)
+                        const selectedText = textItems[idx]
+                        if (selectedText) {
+                            // 重置并加载新内容
+                            init(selectedText.content, textItems)
+                            FreeModule.bindEvents()
+                        }
+                    }
+                }
             }
 
             // 处理用户输入
@@ -1637,6 +1684,21 @@
                 padding-top: 8px;
             }
 
+            .free-tab {
+                margin-left: auto;
+                border: 2px solid var(--primary);
+                color: var(--primary);
+            }
+
+            .free-tab:hover {
+                background: var(--primary-subtle);
+            }
+
+            .free-tab.active {
+                background: var(--primary);
+                color: white;
+            }
+
             .tab {
                 padding: 10px 18px;
                 border: none;
@@ -1774,6 +1836,26 @@
                 height: 18px;
                 accent-color: var(--primary);
                 cursor: pointer;
+            }
+
+            /* ============================================
+               文章选择下拉框样式
+               ============================================ */
+            .text-select {
+                padding: 8px 12px;
+                border: 2px solid var(--border);
+                border-radius: var(--radius-sm);
+                font-size: 0.9rem;
+                color: var(--text-primary);
+                background: var(--card-bg);
+                cursor: pointer;
+                outline: none;
+                transition: all var(--transition);
+            }
+
+            .text-select:focus {
+                border-color: var(--primary);
+                box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
             }
 
             /* ============================================
