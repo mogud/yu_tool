@@ -151,13 +151,120 @@
         })()
 
         // ============================================
+        // 指标跟踪模块（统一管理打字速度、击键速度、键准）
+        // ============================================
+        const MetricsTracker = (() => {
+            let updateTimer = null
+            let startTime = 0
+            let wordCount = 0
+            let totalKeystrokes = 0
+            let errorKeystrokes = 0
+            let currentUpdateFn = null // 当前使用的更新函数
+
+            // 重置所有指标
+            const reset = () => {
+                if (updateTimer) {
+                    clearTimeout(updateTimer)
+                    updateTimer = null
+                }
+                startTime = 0
+                wordCount = 0
+                totalKeystrokes = 0
+                errorKeystrokes = 0
+                currentUpdateFn = null
+            }
+
+            // 开始计时（并指定更新函数）
+            const start = (updateFn) => {
+                if (startTime === 0) {
+                    startTime = new Date().getTime()
+                    currentUpdateFn = updateFn
+                    updateMetrics()
+                }
+            }
+
+            // 停止计时
+            const stop = () => {
+                if (updateTimer) {
+                    clearTimeout(updateTimer)
+                    updateTimer = null
+                }
+                currentUpdateFn = null
+            }
+
+            // 增加已输入字数
+            const addWordCount = (count = 1) => {
+                wordCount += count
+            }
+
+            // 增加击键次数
+            const addKeystroke = (isError = false) => {
+                totalKeystrokes++
+                if (isError) errorKeystrokes++
+            }
+
+            // 获取打字速度（字/分）
+            const getTypingSpeed = () => {
+                if (wordCount === 0 || startTime === 0) return 0
+                const elapsedMs = new Date().getTime() - startTime
+                return (wordCount * 60 * 1000) / elapsedMs
+            }
+
+            // 获取击键速度（次/秒）
+            const getKeystrokeSpeed = () => {
+                if (totalKeystrokes === 0 || startTime === 0) return 0
+                const elapsedSeconds = (new Date().getTime() - startTime) / 1000
+                return elapsedSeconds > 0 ? totalKeystrokes / elapsedSeconds : 0
+            }
+
+            // 获取键准（%）
+            const getAccuracy = () => {
+                if (totalKeystrokes === 0) return 100
+                return ((totalKeystrokes - errorKeystrokes) / totalKeystrokes) * 100
+            }
+
+            // 获取当前统计
+            const getStats = () => ({
+                typingSpeed: getTypingSpeed(),
+                keystrokeSpeed: getKeystrokeSpeed(),
+                accuracy: getAccuracy(),
+                wordCount,
+                totalKeystrokes,
+                errorKeystrokes
+            })
+
+            // 更新指标显示
+            const updateMetrics = () => {
+                if (currentUpdateFn) {
+                    currentUpdateFn()
+                }
+                updateTimer = setTimeout(updateMetrics, 500)
+            }
+
+            // 格式化显示的函数
+            const formatDisplay = (stats) => ({
+                speed: `速度：${stats.typingSpeed.toFixed(2)}字/分`,
+                keystroke: `击键：${stats.keystrokeSpeed.toFixed(2)}次/秒`,
+                accuracy: `键准：${stats.accuracy.toFixed(1)}%`,
+                progress: wordCount
+            })
+
+            return {
+                reset,
+                start,
+                stop,
+                addWordCount,
+                addKeystroke,
+                getStats,
+                formatDisplay
+            }
+        })()
+
+        // ============================================
         // 应用状态管理
         // ============================================
         const AppState = (() => {
             let state = {
-                metricsTimer: null,
-                wordCount: 0,
-                startTime: 0,
                 curInputMax: 0,
                 curInputIndex: 0,
                 curTab: 0,
@@ -165,10 +272,7 @@
                 totalIndex: 0,
                 inputTimer: null,
                 rawAreaFonts: null,
-                cleanupHandlers: [],
-                // 击键速度和键准相关状态
-                totalKeystrokes: 0,
-                errorKeystrokes: 0
+                cleanupHandlers: []
             }
 
             const reset = () => {
@@ -208,27 +312,158 @@
         })()
 
         // ============================================
-        // DOM 引用缓存
+        // UI 组件模块（统一管理 DOM 模板和元素引用）
         // ============================================
-        const DOMRefs = (() => {
-            let refs = {}
+        const UIComponents = (() => {
+            let currentRefs = {}
 
-            const init = () => {
-                refs = {
-                    rawArea: document.getElementById("rawArea"),
-                    userInput: document.getElementById("userInput"),
-                    freeUserInput: document.getElementById("freeUserInput"),
-                    speedLabel: document.getElementById("speedLabel"),
-                    progressLabel: document.getElementById("progressLabel"),
-                    keystrokeSpeedLabel: document.getElementById("keystrokeSpeedLabel"),
-                    accuracyLabel: document.getElementById("accuracyLabel")
-                }
-                return refs
+            // 初始化 DOM 引用缓存
+            const initRefs = (ids = []) => {
+                currentRefs = {}
+                ids.forEach(id => {
+                    currentRefs[id] = document.getElementById(id)
+                })
+                return currentRefs
             }
 
-            const get = (id) => refs[id] || document.getElementById(id)
+            // 获取 DOM 元素
+            const get = (id) => currentRefs[id] || document.getElementById(id)
 
-            return { init, get }
+            // 渲染启动界面
+            const renderLaunchScreen = () => {
+                return `<div class="launch-container">
+                    <div class="launch-icon">⌨️</div>
+                    <h1 class="launch-title">输入法练习工具</h1>
+                    <p class="launch-subtitle">选择配置文件开始练习</p>
+                    <div class="launch-select">
+                        <input type="file" id="configFile" accept=".toml">
+                        <label for="configFile" class="file-label">选择文件</label>
+                    </div>
+                </div>`
+            }
+
+            // 渲染主界面结构
+            const renderMainLayout = (config, appVersion) => {
+                return `<header class="header">
+                    <h1 class="logo">${config.name || '输入法练习工具'}</h1>
+                    <div class="version-info-bar">
+                        <span class="version-item"><span class="version-label">应用</span><span class="version-value">${appVersion}</span></span>
+                        <span class="version-divider"></span>
+                        <span class="version-item"><span class="version-label">输入法</span><span class="version-value">${config.version || '-'}</span></span>
+                        <span class="version-divider"></span>
+                        <span class="version-item"><span class="version-label">配置</span><span class="version-value">${config.config_version || '-'}</span></span>
+                    </div>
+                </header>
+                <nav class="nav-tabs"></nav>
+                <main></main>`
+            }
+
+            // 渲染分组导航
+            const renderGroupNav = (groups, activeGroup) => {
+                let html = '<div class="group-nav">'
+                Object.keys(groups).forEach(groupName => {
+                    const isActive = groupName === activeGroup ? 'active' : ''
+                    html += `<button class="group-tab ${isActive}" data-group="${groupName}">${groupName}</button>`
+                })
+                html += '</div>'
+                return html
+            }
+
+            // 渲染 Tab 列表
+            const renderTabs = (tabs, activeIndex) => {
+                let html = '<div class="tab-container">'
+                tabs.forEach(tab => {
+                    const isActive = tab.index === activeIndex ? 'active' : ''
+                    html += `<button class="tab ${isActive}" id="tab${tab.index}">${tab.label}</button>`
+                })
+                html += '</div>'
+                return html
+            }
+
+            // 渲染练习模板（字根练习）
+            const renderPracticeTemplate = (modeConfigs, sessionStore) => {
+                const savedIdx = sessionStore.get('radioMode', 0)
+                let radioHtml = '<div class="radio-group">'
+                modeConfigs.forEach((mode, i) => {
+                    const checked = i === savedIdx ? 'checked' : ''
+                    radioHtml += `<label>
+                        <input type="radio" name="radiobutton" data-mode="${i}" ${checked}>
+                        ${mode.label}
+                    </label>`
+                })
+                radioHtml += '</div>'
+
+                const showHintChecked = sessionStore.get('showHint', true) ? 'checked' : ''
+                const oneTimeCount = sessionStore.get('oneTimeCount', 30)
+                const totalCount = sessionStore.get('totalCount', 120)
+
+                return `<div class="card practice-card">
+                    <div class="settings-bar">
+                        <div class="setting-group">
+                            <label>单次字数</label>
+                            <input id="oneTimeCount" class="number-input" type="number" min="10" max="500" value="${oneTimeCount}">
+                        </div>
+                        <div class="setting-group">
+                            <label>练习总数</label>
+                            <input id="totalCount" class="number-input" type="number" min="10" max="500" value="${totalCount}">
+                        </div>
+                        <div class="setting-group checkbox-group">
+                            <label class="checkbox-label">
+                                <input id="showHint" type="checkbox" ${showHintChecked}>
+                                <span>显示提示</span>
+                            </label>
+                        </div>
+                        ${radioHtml}
+                    </div>
+                    <div class="stats-bar">
+                        <span id="progressLabel"></span>
+                        <span id="speedLabel"></span>
+                        <span id="keystrokeSpeedLabel">击键：0.00次/秒</span>
+                        <span id="accuracyLabel">键准：100%</span>
+                    </div>
+                    <div class="content-area" id="content">
+                        <div class="display-area" id="rawArea"></div>
+                        <div class="input-area">
+                            <input id="userInput">
+                        </div>
+                    </div>
+                </div>`
+            }
+
+            // 渲染自由练习模板
+            const renderFreeTemplate = (sessionStore) => {
+                const totalCount = sessionStore.get('totalCount', 120)
+                return `<div class="card practice-card">
+                    <div class="stats-bar">
+                        <span id="freeSpeedLabel"></span>
+                        <span id="freeKeystrokeSpeedLabel">击键：0.00次/秒</span>
+                        <span id="freeAccuracyLabel">键准：100%</span>
+                    </div>
+                    <div class="content-area" id="freeContent">
+                        <div class="display-area free-display-area" id="freeArea"></div>
+                        <div class="input-area free-input-area">
+                            <textarea id="freeUserInput" class="free-input" placeholder="自由输入" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>`
+            }
+
+            // 渲染帮助内容
+            const renderHelpContent = (helpContent) => {
+                return helpContent || ''
+            }
+
+            return {
+                initRefs,
+                get,
+                renderLaunchScreen,
+                renderMainLayout,
+                renderGroupNav,
+                renderTabs,
+                renderPracticeTemplate,
+                renderFreeTemplate,
+                renderHelpContent
+            }
         })()
 
         // ============================================
@@ -360,13 +595,11 @@
                 { name: "repeated", label: "乱序重复", handler: (words) => Utils.generateRandomIndices(SessionStore.get("totalCount", 120), words.length).map(i => words[i]) }
             ]
 
-            // 获取DOM元素
-            const getEl = (id) => document.getElementById(id)
-
             // 清理资源
             const cleanup = () => {
                 // 清理 FreeModule
                 FreeModule.cleanup()
+                MetricsTracker.reset()
                 AppState.reset()
             }
 
@@ -411,60 +644,48 @@
                 AppState.addCleanup(() => document.removeEventListener('keydown', handler))
             }
 
-            // 更新所有指标显示（速度、击键速度、键准）
-            const updateMetricsDisplay = () => {
-                const timer = setTimeout(updateMetricsDisplay, 500)
-                AppState.set('metricsTimer', timer)
+            // 更新指标显示（使用 MetricsTracker）
+            const updateMetricsDisplay = (elementIds) => {
+                const stats = MetricsTracker.getStats()
+                const display = MetricsTracker.formatDisplay(stats)
 
-                // 更新打字速度（字/分）
-                const wordCount = AppState.get('wordCount')
-                if (wordCount > 0) {
-                    const speed = wordCount * 60 * 1000 / (new Date().getTime() - AppState.get('startTime'))
-                    DOMRefs.get('speedLabel').textContent = `速度：${speed.toFixed(2)}字/分`
+                if (elementIds.speed) {
+                    const el = UIComponents.get(elementIds.speed)
+                    if (el) el.textContent = display.speed
                 }
-
-                // 更新击键速度（次/秒）
-                const totalKeystrokes = AppState.get('totalKeystrokes')
-                if (totalKeystrokes > 0) {
-                    const elapsedSeconds = (new Date().getTime() - AppState.get('startTime')) / 1000
-                    if (elapsedSeconds > 0) {
-                        const keystrokeSpeed = totalKeystrokes / elapsedSeconds
-                        DOMRefs.get('keystrokeSpeedLabel').textContent = `击键：${keystrokeSpeed.toFixed(2)}次/秒`
-                    }
+                if (elementIds.keystroke) {
+                    const el = UIComponents.get(elementIds.keystroke)
+                    if (el) el.textContent = display.keystroke
                 }
-
-                // 更新键准（%）
-                const errorKeystrokes = AppState.get('errorKeystrokes')
-                if (totalKeystrokes > 0) {
-                    const accuracy = ((totalKeystrokes - errorKeystrokes) / totalKeystrokes) * 100
-                    DOMRefs.get('accuracyLabel').textContent = `键准：${accuracy.toFixed(1)}%`
+                if (elementIds.accuracy) {
+                    const el = UIComponents.get(elementIds.accuracy)
+                    if (el) el.textContent = display.accuracy
+                }
+                if (elementIds.progress) {
+                    const el = UIComponents.get(elementIds.progress)
+                    if (el) el.textContent = `\t进度：${display.progress}/${AppState.get('totalWords').length}字`
                 }
             }
 
-            // 启动指标计时器
-            const startMetricsTimer = () => {
-                if (AppState.get('metricsTimer') === null) {
-                    AppState.set('startTime', new Date().getTime())
-                    updateMetricsDisplay()
-                }
+            // 启动指标跟踪
+            const startMetricsTracking = (elementIds) => {
+                MetricsTracker.reset()
+                const updateFn = () => updateMetricsDisplay(elementIds)
+                MetricsTracker.start(updateFn)
             }
 
-            // 重置指标计时器
-            const resetMetricsTimer = () => {
-                const timer = AppState.get('metricsTimer')
-                if (timer !== null) {
-                    clearTimeout(timer)
-                    AppState.set('metricsTimer', null)
-                }
+            // 停止指标跟踪
+            const stopMetricsTracking = () => {
+                MetricsTracker.stop()
             }
 
             // 更新占位符
             const updatePlaceholder = () => {
                 const curInputIndex = AppState.get('curInputIndex')
-                const word = getEl(`word${curInputIndex}`)
+                const word = UIComponents.get(`word${curInputIndex}`)
                 if (word) {
                     const showHint = SessionStore.get('showHint', true)
-                    DOMRefs.get('userInput').setAttribute("placeholder", showHint ? word.getAttribute("key") : "")
+                    UIComponents.get('userInput').setAttribute("placeholder", showHint ? word.getAttribute("key") : "")
                 }
             }
 
@@ -473,7 +694,7 @@
                 const curInputIndex = AppState.get('curInputIndex')
                 const curInputMax = AppState.get('curInputMax')
                 if (curInputIndex >= curInputMax) return null
-                return getEl(`word${curInputIndex}`)
+                return UIComponents.get(`word${curInputIndex}`)
             }
 
             // 根据索引列表获取单词
@@ -500,7 +721,7 @@
                 AppState.set('curInputMax', wordNeed)
                 AppState.set('curInputIndex', 0)
 
-                const rawArea = DOMRefs.get('rawArea')
+                const rawArea = UIComponents.get('rawArea')
                 rawArea.innerHTML = ''
 
                 totalWords.slice(totalIndex, totalIndex + wordNeed).forEach((word, idx) => {
@@ -535,7 +756,7 @@
                     }
 
                     const key = word.getAttribute("key")
-                    const userInput = DOMRefs.get('userInput')
+                    const userInput = UIComponents.get('userInput')
                     const val = userInput.value
 
                     if (val.length < key.length) {
@@ -544,16 +765,17 @@
                     }
 
                     if (val.toLowerCase() === key) {
-                        startMetricsTimer()
+                        MetricsTracker.start()
+                        MetricsTracker.addWordCount()
                         AppState.set('curInputIndex', curInputIndex + 1)
-                        AppState.set('wordCount', AppState.get('wordCount') + 1)
 
                         const totalWords = AppState.get('totalWords')
-                        DOMRefs.get('progressLabel').textContent = `\t进度：${AppState.get('wordCount')}/${totalWords.length}字`
+                        UIComponents.get('progressLabel').textContent = `\t进度：${MetricsTracker.getStats().wordCount}/${totalWords.length}字`
                         word.style.color = "var(--text-primary)"
                         userInput.value = ""
                         updatePlaceholder()
                     } else {
+                        MetricsTracker.addKeystroke(true) // 错误按键
                         word.style.color = "var(--error)"
                         userInput.value = ""
                         userInput.setAttribute("placeholder", key)
@@ -564,7 +786,7 @@
                     if (AppState.get('curInputIndex') >= AppState.get('curInputMax')) {
                         if (!loadNextBatch()) {
                             userInput.setAttribute("disabled", "true")
-                            resetMetricsTimer()
+                            stopMetricsTracking()
                         }
                     }
                 }, 50)
@@ -574,8 +796,7 @@
 
             // 初始化DOM引用
             const initDomReferences = () => {
-                const refs = DOMRefs.init()
-                const userInput = refs.userInput
+                const userInput = UIComponents.get('userInput')
 
                 if (userInput) {
                     userInput.oninput = handleInput
@@ -585,19 +806,15 @@
                 const keydownHandler = (e) => {
                     if (!userInput || document.activeElement !== userInput) return
 
-                    // 每次 keydown 都算一次按键
-                    AppState.set('totalKeystrokes', AppState.get('totalKeystrokes') + 1)
-
                     // Backspace 和 Del 视为错误按键
-                    if (e.key === 'Backspace' || e.key === 'Delete') {
-                        AppState.set('errorKeystrokes', AppState.get('errorKeystrokes') + 1)
-                    }
+                    const isError = e.key === 'Backspace' || e.key === 'Delete'
+                    MetricsTracker.addKeystroke(isError)
                 }
                 document.addEventListener('keydown', keydownHandler)
                 AppState.addCleanup(() => document.removeEventListener('keydown', keydownHandler))
 
-                const oneTimeCount = getEl("oneTimeCount")
-                const totalCount = getEl("totalCount")
+                const oneTimeCount = UIComponents.get("oneTimeCount")
+                const totalCount = UIComponents.get("totalCount")
 
                 if (oneTimeCount) {
                     oneTimeCount.addEventListener('change', () => startPractice(AppState.get('curTab')))
@@ -622,94 +839,133 @@
             const updateTabStyles = (activateIdx) => {
                 document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"))
                 if (activateIdx !== null) {
-                    getEl(`tab${activateIdx}`).classList.add("active")
+                    UIComponents.get(`tab${activateIdx}`).classList.add("active")
                 }
             }
 
             // 切换输入区域
             const toggleInputArea = (val) => {
-                const contentCard = document.getElementById('content') || document.getElementById('freeContent')
+                const contentCard = UIComponents.get('content') || UIComponents.get('freeContent')
                 if (contentCard) {
                     contentCard.style.display = val ? "flex" : "none"
                 }
-                const userInput = document.getElementById('userInput') || document.getElementById('freeUserInput')
+                const userInput = UIComponents.get('userInput') || UIComponents.get('freeUserInput')
                 if (userInput) userInput.value = ""
             }
 
             // 显示模板
-            const showTemplate = (templateId, helpIndex = 0) => {
-                const mainEl = document.querySelector("main")
-                if (templateId === "help-template") {
-                    const helpContent = (config.help && config.help[helpIndex]) ? config.help[helpIndex] : ''
-                    mainEl.innerHTML = helpContent
-                    return
-                }
 
-                const template = getEl(templateId)
-                if (!template) {
-                    console.error('Template not found:', templateId)
-                    return
-                }
+                        const showTemplate = (templateId, helpIndex = 0) => {
 
-                const clone = template.content.cloneNode(true)
+                            const mainEl = document.querySelector("main")
 
-                if (templateId === "practice-template") {
-                    const radioGroup = clone.querySelector(".radio-group")
-                    if (radioGroup) {
-                        radioGroup.innerHTML = ""
-                        const savedIdx = SessionStore.get('radioMode', 0)
-                        for (let i = 0; i < modeConfigs.length; i++) {
-                            const label = document.createElement("label")
-                            const input = document.createElement("input")
-                            input.type = "radio"
-                            input.name = "radiobutton"
-                            input.checked = (i === savedIdx)
-                            input.onclick = () => {
-                                SessionStore.set('radioMode', i)
-                                startPractice(AppState.get('curTab'))
+                            if (templateId === "help-template") {
+
+                                mainEl.innerHTML = UIComponents.renderHelpContent(config.help?.[helpIndex])
+
+                                return
+
                             }
-                            label.appendChild(input)
-                            label.appendChild(document.createTextNode(modeConfigs[i].label))
-                            radioGroup.appendChild(label)
+
+
+
+                            let content = ''
+
+                            if (templateId === "practice-template") {
+
+                                content = UIComponents.renderPracticeTemplate(modeConfigs, SessionStore)
+
+                            } else if (templateId === "free-template") {
+
+                                content = UIComponents.renderFreeTemplate(SessionStore)
+
+                            }
+
+
+
+                            mainEl.innerHTML = content
+
+
+
+                            // 绑定事件
+
+                            if (templateId === "practice-template") {
+
+                                bindPracticeTemplateEvents()
+
+                            }
+
                         }
-                    }
 
-                    const hintCheckbox = clone.querySelector("#showHint")
-                    if (hintCheckbox) {
-                        hintCheckbox.checked = SessionStore.get('showHint', true)
-                        hintCheckbox.onchange = (e) => {
-                            SessionStore.set('showHint', e.target.checked)
-                            updatePlaceholder()
+
+
+                        // 绑定练习模板事件
+
+                        const bindPracticeTemplateEvents = () => {
+
+                            // 单选按钮事件
+
+                            const radioButtons = document.querySelectorAll('input[name="radiobutton"]')
+
+                            radioButtons.forEach(input => {
+
+                                input.onclick = () => {
+
+                                    const modeIdx = parseInt(input.dataset.mode)
+
+                                    SessionStore.set('radioMode', modeIdx)
+
+                                    startPractice(AppState.get('curTab'))
+
+                                }
+
+                            })
+
+
+
+                            // 提示复选框
+
+                            const hintCheckbox = document.getElementById('showHint')
+
+                            if (hintCheckbox) {
+
+                                hintCheckbox.onchange = (e) => {
+
+                                    SessionStore.set('showHint', e.target.checked)
+
+                                    updatePlaceholder()
+
+                                }
+
+                            }
+
+
+
+                            // 数字输入框
+
+                            const oneTimeCountInput = document.getElementById('oneTimeCount')
+
+                            if (oneTimeCountInput) {
+
+                                oneTimeCountInput.onchange = (e) => SessionStore.set('oneTimeCount', e.target.value)
+
+                            }
+
+
+
+                            const totalCountInput = document.getElementById('totalCount')
+
+                            if (totalCountInput) {
+
+                                totalCountInput.onchange = (e) => SessionStore.set('totalCount', e.target.value)
+
+                            }
+
                         }
-                    }
-
-                    const oneTimeCountInput = clone.querySelector("#oneTimeCount")
-                    if (oneTimeCountInput) {
-                        oneTimeCountInput.value = SessionStore.get('oneTimeCount', 30)
-                        oneTimeCountInput.onchange = (e) => SessionStore.set('oneTimeCount', e.target.value)
-                    }
-
-                    const totalCountInput = clone.querySelector("#totalCount")
-                    if (totalCountInput) {
-                        totalCountInput.value = SessionStore.get('totalCount', 120)
-                        totalCountInput.onchange = (e) => SessionStore.set('totalCount', e.target.value)
-                    }
-                } else if (templateId === "free-template") {
-                    const totalCountInput = clone.querySelector("#totalCount")
-                    if (totalCountInput) {
-                        totalCountInput.value = SessionStore.get('totalCount', 120)
-                        totalCountInput.onchange = (e) => SessionStore.set('totalCount', e.target.value)
-                    }
-                }
-
-                mainEl.innerHTML = ""
-                mainEl.appendChild(clone)
-            }
 
             // 初始化标签
             const initTabs = () => {
                 const nav = document.querySelector(".nav-tabs")
-                nav.innerHTML = ''
 
                 // 按 group 分组
                 const groups = {}
@@ -723,23 +979,18 @@
                     groups[groupName].push({ ...tabConfig, index: i })
                 })
 
-                // 添加分组导航栏
-                const groupNav = document.createElement("div")
-                groupNav.className = "group-nav"
-                Object.keys(groups).forEach(groupName => {
-                    const groupBtn = document.createElement("button")
-                    groupBtn.className = "group-tab"
-                    groupBtn.textContent = groupName
-                    groupBtn.dataset.group = groupName
-                    groupBtn.onclick = () => switchGroup(groupName)
-                    groupNav.appendChild(groupBtn)
-                })
-                nav.appendChild(groupNav)
+                // 渲染分组导航
+                nav.innerHTML = UIComponents.renderGroupNav(groups, null)
 
-                // 添加当前分组的 tabs
+                // 添加当前分组的 tabs 容器
                 const tabContainer = document.createElement("div")
                 tabContainer.className = "tab-container"
                 nav.appendChild(tabContainer)
+
+                // 绑定分组点击事件
+                document.querySelectorAll('.group-tab').forEach(btn => {
+                    btn.onclick = () => switchGroup(btn.dataset.group)
+                })
 
                 // 默认显示第一个分组
                 if (firstGroup) {
@@ -749,16 +1000,14 @@
 
             // 切换分组
             const switchGroup = (groupName, updateActiveTab = true) => {
+                // 更新分组样式
                 const groupTab = document.querySelector(`.group-tab[data-group="${groupName}"]`)
                 if (groupTab) {
                     document.querySelectorAll(".group-tab").forEach(t => t.classList.remove("active"))
                     groupTab.classList.add("active")
                 }
 
-                // 渲染该分组的 tabs
-                const tabContainer = document.querySelector(".tab-container")
-                tabContainer.innerHTML = ''
-
+                // 获取分组数据
                 const groups = {}
                 config.tabs.forEach((tabConfig, i) => {
                     const g = tabConfig.group || '默认'
@@ -766,22 +1015,25 @@
                     groups[g].push({ ...tabConfig, index: i })
                 })
 
+                // 渲染该分组的 tabs
                 const tabs = groups[groupName] || []
+                const tabContainer = document.querySelector(".tab-container")
+                tabContainer.innerHTML = UIComponents.renderTabs(tabs, null)
+
+                // 绑定 tab 点击事件
                 tabs.forEach(tab => {
-                    const btn = document.createElement("button")
-                    btn.className = "tab"
-                    btn.id = `tab${tab.index}`
-                    btn.textContent = tab.label
-                    btn.onclick = () => {
-                        if (tab.type === "help") {
-                            displayHelp(tab.index[0])
-                        } else if (tab.type === "free") {
-                            startPractice(tab.index, 'free')
-                        } else {
-                            startPractice(tab.index)
+                    const btn = document.getElementById(`tab${tab.index}`)
+                    if (btn) {
+                        btn.onclick = () => {
+                            if (tab.type === "help") {
+                                displayHelp(tab.index[0])
+                            } else if (tab.type === "free") {
+                                startPractice(tab.index, 'free')
+                            } else {
+                                startPractice(tab.index)
+                            }
                         }
                     }
-                    tabContainer.appendChild(btn)
                 })
 
                 // 激活该分组的第一个 tab
@@ -799,17 +1051,10 @@
 
             // 显示帮助
             const displayHelp = (helpIndex = 0) => {
-                resetMetricsTimer()
+                stopMetricsTracking()
                 updateTabStyles(helpIndex)
                 const mainEl = document.querySelector("main")
-                const helpContent = (config.help && config.help[helpIndex]) ? config.help[helpIndex] : ''
-                mainEl.innerHTML = helpContent
-
-                // 重置击键统计显示
-                const keystrokeSpeedLabel = DOMRefs.get('keystrokeSpeedLabel')
-                const accuracyLabel = DOMRefs.get('accuracyLabel')
-                if (keystrokeSpeedLabel) keystrokeSpeedLabel.textContent = "击键：0.00次/秒"
-                if (accuracyLabel) accuracyLabel.textContent = "键准：100%"
+                mainEl.innerHTML = UIComponents.renderHelpContent(config.help?.[helpIndex])
 
                 // 切换到 help 所在的分组
                 const helpTab = config.tabs.find(t => t.type === 'help' && t.index[0] === helpIndex)
@@ -838,24 +1083,22 @@
                     showTemplate("practice-template")
                 }
 
+                // 初始化 DOM 引用缓存
+                UIComponents.initRefs([
+                    'rawArea', 'userInput', 'freeUserInput',
+                    'speedLabel', 'progressLabel', 'keystrokeSpeedLabel', 'accuracyLabel',
+                    'freeSpeedLabel', 'freeKeystrokeSpeedLabel', 'freeAccuracyLabel',
+                    'oneTimeCount', 'totalCount', 'showHint'
+                ])
+
                 initDomReferences()
                 initKeyBindings() // 重新注册快捷键（cleanup会移除）
                 toggleInputArea(true)
 
-                const rawArea = document.getElementById('rawArea') || document.getElementById('freeArea')
+                const rawArea = UIComponents.get('rawArea') || UIComponents.get('freeArea')
                 const userInput = isFreeType
-                    ? document.getElementById('freeUserInput')
-                    : document.getElementById('userInput')
-                const speedLabel = isFreeType
-                    ? document.getElementById('freeSpeedLabel')
-                    : document.getElementById('speedLabel')
-                const progressLabel = document.getElementById('progressLabel')
-                const keystrokeSpeedLabel = isFreeType
-                    ? document.getElementById('freeKeystrokeSpeedLabel')
-                    : document.getElementById('keystrokeSpeedLabel')
-                const accuracyLabel = isFreeType
-                    ? document.getElementById('freeAccuracyLabel')
-                    : document.getElementById('accuracyLabel')
+                    ? UIComponents.get('freeUserInput')
+                    : UIComponents.get('userInput')
 
                 if (!rawArea || !userInput) {
                     console.error('startPractice: rawArea or userInput not found')
@@ -871,15 +1114,7 @@
                 userInput.focus({ preventScroll: true })
 
                 AppState.set('totalIndex', 0)
-                AppState.set('wordCount', 0)
                 AppState.set('curTab', val)
-                speedLabel.textContent = "速度：0.00字/分"
-                keystrokeSpeedLabel.textContent = "击键：0.00次/秒"
-                accuracyLabel.textContent = "键准：100%"
-
-                // 初始化击键统计
-                AppState.set('totalKeystrokes', 0)
-                AppState.set('errorKeystrokes', 0)
 
                 // 判断是否为 free 类型
                 if (isFreeType) {
@@ -894,8 +1129,19 @@
                     AppState.set('totalWords', modeConfigs[modeIdx].handler(allWords))
 
                     loadNextBatch()
-                    progressLabel.textContent = `\t进度：0/${AppState.get('totalWords').length}字`
-                    resetMetricsTimer()
+                    const progressLabel = UIComponents.get('progressLabel')
+                    if (progressLabel) {
+                        progressLabel.textContent = `\t进度：0/${AppState.get('totalWords').length}字`
+                    }
+
+                    // 启动指标跟踪
+                    const elementIds = {
+                        speed: 'speedLabel',
+                        keystroke: 'keystrokeSpeedLabel',
+                        accuracy: 'accuracyLabel',
+                        progress: 'progressLabel'
+                    }
+                    startMetricsTracking(elementIds)
                 }
 
                 // 切换到当前 tab 所在的分组
@@ -942,18 +1188,7 @@
                 document.title = config.name || '输入法练习工具'
 
                 // 恢复主界面结构
-                document.querySelector('.app-container').innerHTML = `<header class="header">
-                    <h1 class="logo">${config.name || '输入法练习工具'}</h1>
-                    <div class="version-info-bar">
-                        <span class="version-item"><span class="version-label">应用</span><span class="version-value">${appVersion}</span></span>
-                        <span class="version-divider"></span>
-                        <span class="version-item"><span class="version-label">输入法</span><span class="version-value">${config.version || '-'}</span></span>
-                        <span class="version-divider"></span>
-                        <span class="version-item"><span class="version-label">配置</span><span class="version-value">${config.config_version || '-'}</span></span>
-                    </div>
-                </header>
-                <nav class="nav-tabs"></nav>
-                <main></main>`
+                document.querySelector('.app-container').innerHTML = UIComponents.renderMainLayout(config, appVersion)
 
                 // 初始化
                 initTabs()
@@ -987,16 +1222,8 @@
 
             // 显示启动界面
             const showLaunchScreen = () => {
-                document.querySelector('.app-container').innerHTML = `<div class="launch-container">
-                    <div class="launch-icon">⌨️</div>
-                    <h1 class="launch-title">输入法练习工具</h1>
-                    <p class="launch-subtitle">选择配置文件开始练习</p>
-                    <div class="launch-select">
-                        <input type="file" id="configFile" accept=".toml">
-                        <label for="configFile" class="file-label">选择文件</label>
-                    </div>
-                </div>`
-                getEl('configFile').addEventListener('change', onConfigSelected)
+                document.querySelector('.app-container').innerHTML = UIComponents.renderLaunchScreen()
+                UIComponents.get('configFile').addEventListener('change', onConfigSelected)
             }
 
             // 初始化
@@ -1014,6 +1241,20 @@
         const FreeModule = (() => {
             let currentText = '' // 当前练习的文本
             let inputTimer = null // 防抖定时器
+
+            // 更新自由练习的指标显示
+            const updateFreeMetrics = () => {
+                const stats = MetricsTracker.getStats()
+                const display = MetricsTracker.formatDisplay(stats)
+
+                const speedLabel = document.getElementById('freeSpeedLabel')
+                const keystrokeSpeedLabel = document.getElementById('freeKeystrokeSpeedLabel')
+                const accuracyLabel = document.getElementById('freeAccuracyLabel')
+
+                if (speedLabel) speedLabel.textContent = display.speed
+                if (keystrokeSpeedLabel) keystrokeSpeedLabel.textContent = display.keystroke
+                if (accuracyLabel) accuracyLabel.textContent = display.accuracy
+            }
 
             // 初始化自由练习
             const init = (text) => {
@@ -1045,16 +1286,10 @@
                 userInput.focus({ preventScroll: true })
 
                 // 重置指标
-                AppState.set('wordCount', 0)
-                AppState.set('totalKeystrokes', 0)
-                AppState.set('errorKeystrokes', 0)
+                MetricsTracker.reset()
 
                 // 启用输入框
                 userInput.removeAttribute('disabled')
-
-                // 重置击键统计
-                AppState.set('totalKeystrokes', 0)
-                AppState.set('errorKeystrokes', 0)
 
                 // 重置指标显示
                 const speedLabel = document.getElementById('freeSpeedLabel')
@@ -1117,34 +1352,8 @@
                     }
 
                     // 启动指标计时器
-                    const metricsTimer = AppState.get('metricsTimer')
-                    if (val.length > 0 && metricsTimer === null) {
-                        AppState.set('startTime', new Date().getTime())
-                        // 启动指标更新定时器
-                        const updateFreeMetrics = () => {
-                            // 更新击键速度（次/秒）
-                            const totalKeystrokes = AppState.get('totalKeystrokes')
-                            const elapsedSeconds = (new Date().getTime() - AppState.get('startTime')) / 1000
-                            if (elapsedSeconds > 0) {
-                                const keystrokeSpeed = totalKeystrokes / elapsedSeconds
-                                const keystrokeSpeedLabel = document.getElementById('freeKeystrokeSpeedLabel')
-                                if (keystrokeSpeedLabel) keystrokeSpeedLabel.textContent = `击键：${keystrokeSpeed.toFixed(2)}次/秒`
-                            }
-
-                            // 更新键准（%）
-                            const errorKeystrokes = AppState.get('errorKeystrokes')
-                            if (totalKeystrokes > 0) {
-                                const accuracy = ((totalKeystrokes - errorKeystrokes) / totalKeystrokes) * 100
-                                const accuracyLabel = document.getElementById('freeAccuracyLabel')
-                                if (accuracyLabel) accuracyLabel.textContent = `键准：${accuracy.toFixed(1)}%`
-                            }
-
-                            // 继续定时更新
-                            const newTimer = setTimeout(updateFreeMetrics, 500)
-                            AppState.set('metricsTimer', newTimer)
-                        }
-                        const timer = setTimeout(updateFreeMetrics, 500)
-                        AppState.set('metricsTimer', timer)
+                    if (val.length > 0 && MetricsTracker.getStats().wordCount === 0) {
+                        MetricsTracker.start(updateFreeMetrics)
                     }
 
                     inputTimer = null
@@ -1177,13 +1386,9 @@
                 const keydownHandler = (e) => {
                     if (!userInput || document.activeElement !== userInput) return
 
-                    // 每次 keydown 都算一次按键
-                    AppState.set('totalKeystrokes', AppState.get('totalKeystrokes') + 1)
-
                     // Backspace 和 Del 视为错误按键
-                    if (e.key === 'Backspace' || e.key === 'Delete') {
-                        AppState.set('errorKeystrokes', AppState.get('errorKeystrokes') + 1)
-                    }
+                    const isError = e.key === 'Backspace' || e.key === 'Delete'
+                    MetricsTracker.addKeystroke(isError)
                 }
                 document.addEventListener('keydown', keydownHandler)
                 AppState.addCleanup(() => document.removeEventListener('keydown', keydownHandler))
@@ -1195,11 +1400,7 @@
                     clearTimeout(inputTimer)
                     inputTimer = null
                 }
-                const metricsTimer = AppState.get('metricsTimer')
-                if (metricsTimer) {
-                    clearTimeout(metricsTimer)
-                    AppState.set('metricsTimer', null)
-                }
+                MetricsTracker.stop()
                 currentText = ''
             }
 
@@ -1210,644 +1411,621 @@
         window.addEventListener('load', App.init)
     </script>
     <style>
-        :root {
-            --primary: #6366f1;
-            --primary-subtle: #eef2ff;
-            --success: #10b981;
-            --success-subtle: #d1fae5;
-            --error: #ef4444;
-            --error-subtle: #fee2e2;
-            --warning: #f59e0b;
-            --warning-subtle: #fef3c7;
-            --bg: #f8fafc;
-            --card-bg: #ffffff;
-            --text-primary: #1e293b;
-            --text-secondary: #64748b;
-            --text-tertiary: #cbd5e1;
-            --border: #e2e8f0;
-            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
-            --radius: 12px;
-            --radius-sm: 8px;
-            --transition: 0.2s ease;
-        }
-
-        html {
-            font-size: 16px;
-            line-height: 1.6;
-            color: var(--text-primary);
-            background: var(--bg);
-        }
-
-        body {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 24px;
-        }
-
-        .app-container {
-            width: 100%;
-            max-width: 900px;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 24px;
-        }
-
-        .logo {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 8px;
-            letter-spacing: -0.02em;
-        }
-
-        .version-info-bar {
-            display: inline-flex;
-            align-items: center;
-            gap: 0;
-            padding: 8px 16px;
-            background: var(--card-bg);
-            border-radius: 20px;
-            box-shadow: var(--shadow-sm);
-        }
-
-        .version-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 8px;
-        }
-
-        .version-label {
-            color: var(--text-tertiary);
-            font-size: 0.75rem;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .version-value {
-            color: var(--text-secondary);
-            font-size: 0.875rem;
-            font-weight: 600;
-        }
-
-        .version-divider {
-            width: 1px;
-            height: 16px;
-            background: var(--border);
-        }
-
-        .nav-tabs {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin-bottom: 24px;
-            padding: 12px;
-            background: var(--card-bg);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-        }
-
-        .group-nav {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            justify-content: center;
-            padding-bottom: 8px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .group-tab {
-            padding: 6px 14px;
-            border: none;
-            background: transparent;
-            color: var(--text-secondary);
-            font-size: 0.8rem;
-            font-weight: 500;
-            cursor: pointer;
-            border-radius: var(--radius-sm);
-            transition: all var(--transition);
-        }
-
-        .group-tab:hover {
-            background: var(--primary-subtle);
-            color: var(--primary);
-        }
-
-        .group-tab.active {
-            background: var(--primary);
-            color: white;
-        }
-
-        .tab-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            justify-content: center;
-            padding-top: 8px;
-        }
-
-        .tab {
-            padding: 10px 18px;
-            border: none;
-            background: transparent;
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            font-weight: 500;
-            cursor: pointer;
-            border-radius: var(--radius-sm);
-            transition: all var(--transition);
-        }
-
-        .tab:hover {
-            background: var(--primary-subtle);
-            color: var(--primary);
-        }
-
-        .tab.active {
-            background: var(--primary);
-            color: white;
-            box-shadow: var(--shadow-sm);
-        }
-
-        .card {
-            background: var(--card-bg);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            padding: 24px;
-            margin-bottom: 20px;
-        }
-
-        .practice-card {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .practice-card .content-area {
-            margin-top: 0;
-        }
-
-        .settings-bar {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
-
-        .setting-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .setting-group label {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-            font-weight: 500;
-        }
-
-        .number-input {
-            width: 70px;
-            padding: 8px 10px;
-            border: 2px solid var(--border);
-            border-radius: var(--radius-sm);
-            font-size: 0.9rem;
-            text-align: center;
-            outline: none;
-            transition: all var(--transition);
-            color: var(--text-primary);
-            font-weight: 500;
-        }
-
-        .number-input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-        }
-
-        .radio-group {
-            display: flex;
-            gap: 16px;
-        }
-
-        .radio-group label {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-            transition: color var(--transition);
-        }
-
-        .radio-group label:hover {
-            color: var(--text-primary);
-        }
-
-        .radio-group input[type="radio"] {
-            width: 16px;
-            height: 16px;
-            accent-color: var(--primary);
-            cursor: pointer;
-        }
-
-        .checkbox-group {
-            display: flex;
-            align-items: center;
-        }
-
-        .checkbox-label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-            font-weight: 500;
-            transition: color var(--transition);
-        }
-
-        .checkbox-label:hover {
-            color: var(--text-primary);
-        }
-
-        .checkbox-label input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            accent-color: var(--primary);
-            cursor: pointer;
-        }
-
-        .stats-bar {
-            display: flex;
-            gap: 24px;
-            justify-content: center;
-            padding: 14px 24px;
-            background: var(--primary-subtle);
-            border-radius: var(--radius-sm);
-            font-weight: 600;
-            color: var(--primary);
-            font-size: 0.95rem;
-        }
-
-        .content-area {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .content-area > * {
-            align-self: stretch;
-        }
-
-        .display-area {
-            width: auto;
-            min-height: 280px;
-            padding: 28px;
-            background: var(--bg);
-            border-radius: var(--radius);
-            font-size: 2.25rem;
-            font-weight: 600;
-            line-height: 2;
-            outline: none;
-            word-break: keep-all;
-            overflow-y: visible;
-            resize: none;
-            letter-spacing: 0.08em;
-            text-align: center;
-            border: none;
-        }
-
-        .display-area span {
-            display: inline-block;
-            margin: 4px 10px;
-            padding: 6px 14px;
-            border-radius: var(--radius-sm);
-            transition: all var(--transition);
-        }
-
-        .display-area span.completed {
-            color: var(--success);
-            background: var(--success-subtle);
-        }
-
-        .display-area span.current {
-            color: var(--warning);
-            background: var(--warning-subtle);
-            transform: scale(1.08);
-        }
-
-        .display-area span.error {
-            color: var(--error);
-            background: var(--error-subtle);
-        }
-
-        .input-area {
-            margin-top: 24px;
-            display: flex;
-            justify-content: center;
-        }
-
-        #userInput {
-            width: 100%;
-            max-width: 320px;
-            padding: 16px 24px;
-            font-size: 1.25rem;
-            font-weight: 600;
-            text-align: center;
-            border: 2px solid var(--border);
-            border-radius: var(--radius);
-            outline: none;
-            transition: all var(--transition);
-            letter-spacing: 0.15em;
-            color: var(--text-primary);
-            caret-color: transparent;
-        }
-
-        #userInput:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
-        }
-
-        #userInput:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        #freeUserInput {
-            width: 100%;
-            height: 100%;
-            min-height: 200px;
-            font-size: 1.5rem;
-            padding: 0;
-            line-height: 1.6;
-            border: none;
-            resize: vertical;
-            outline: none;
-            font-family: inherit;
-            background: transparent;
-            color: var(--text-primary);
-        }
-
-        #font-container {
-            font-family: '宋体', 'Yuniversus', 'WenJin Mincho Plane 0', 'WenJin Mincho Plane 2', 'WenJin Mincho Plane 3', 'TH-Times', 'TH-Tshyn-P0', 'TH-Tshyn-P1', 'TH-Tshyn-P2', 'TH-Tshyn-P16', 'SimSun-ExtB', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-
-        .help-block {
-            padding: 16px 20px;
-            margin-bottom: 16px;
-            background: var(--bg);
-            border-radius: var(--radius-sm);
-        }
-
-        .help-block h3 {
-            font-size: 1rem;
-            color: var(--text-primary);
-            margin-bottom: 8px;
-        }
-
-        .help-block p {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            margin-bottom: 12px;
-        }
-
-        .help-items {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .help-items code {
-            display: inline-block;
-            background: var(--primary-subtle);
-            color: var(--primary);
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-weight: 600;
-        }
-
-        @media (max-width: 640px) {
-            body {
-                padding: 16px;
+            /* ============================================
+               CSS 变量（设计系统）
+               ============================================ */
+            :root {
+                /* 主色调 */
+                --primary: #6366f1;
+                --primary-subtle: #eef2ff;
+                /* 状态色 */
+                --error: #ef4444;
+                --error-subtle: #fee2e2;
+                /* 背景与文本 */
+                --bg: #f8fafc;
+                --card-bg: #ffffff;
+                --text-primary: #1e293b;
+                --text-secondary: #64748b;
+                --text-tertiary: #cbd5e1;
+                --border: #e2e8f0;
+                /* 阴影与圆角 */
+                --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+                --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+                --radius: 12px;
+                --radius-sm: 8px;
+                --transition: 0.2s ease;
+            }
+            /* ============================================
+               基础样式重置
+               ============================================ */
+            html {
+                font-size: 16px;
+                line-height: 1.6;
+                color: var(--text-primary);
+                background: var(--bg);
             }
 
-            .nav-tabs {
+            body {
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                padding: 24px;
+            }
+
+            .app-container {
+                width: 100%;
+                max-width: 900px;
+            }
+
+            /* ============================================
+               启动界面样式
+               ============================================ */
+            .launch-container {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                min-height: 70vh;
+                gap: 16px;
+                text-align: center;
+            }
+
+            .launch-icon {
+                font-size: 5rem;
+                margin-bottom: 8px;
+                animation: float 3s ease-in-out infinite;
+            }
+
+            @keyframes float {
+                0%, 100% { transform: translateY(0); }
+                50% { transform: translateY(-10px); }
+            }
+
+            .launch-title {
+                font-size: 2.5rem;
+                font-weight: 700;
+                color: var(--text-primary);
+                margin: 0;
+            }
+
+            .launch-subtitle {
+                font-size: 1.1rem;
+                color: var(--text-secondary);
+                margin: 0 0 24px 0;
+            }
+
+            .launch-select {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .launch-select input[type="file"] {
+                display: none;
+            }
+
+            .file-label {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 14px 32px;
+                font-size: 1.1rem;
+                font-weight: 500;
+                color: white;
+                background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
+                border: none;
+                border-radius: 12px;
+                cursor: pointer;
+                transition: transform 0.2s, box-shadow 0.2s;
+                box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+            }
+
+            .file-label:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+            }
+
+            .file-label:active {
+                transform: translateY(0);
+            }
+
+            /* ============================================
+               头部样式
+               ============================================ */
+            .header {
+                text-align: center;
+                margin-bottom: 24px;
+            }
+
+            .logo {
+                font-size: 2rem;
+                font-weight: 700;
+                color: var(--text-primary);
+                margin-bottom: 8px;
+                letter-spacing: -0.02em;
+            }
+
+            .version-info-bar {
+                display: inline-flex;
+                align-items: center;
+                gap: 0;
+                padding: 8px 16px;
+                background: var(--card-bg);
+                border-radius: 20px;
+                box-shadow: var(--shadow-sm);
+            }
+
+            .version-item {
+                display: flex;
+                align-items: center;
                 gap: 6px;
-                padding: 4px;
+                padding: 4px 8px;
+            }
+
+            .version-label {
+                color: var(--text-tertiary);
+                font-size: 0.75rem;
+                font-weight: 500;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+
+            .version-value {
+                color: var(--text-secondary);
+                font-size: 0.875rem;
+                font-weight: 600;
+            }
+
+            .version-divider {
+                width: 1px;
+                height: 16px;
+                background: var(--border);
+            }
+
+            /* ============================================
+               导航标签样式
+               ============================================ */
+            .nav-tabs {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                margin-bottom: 24px;
+                padding: 12px;
+                background: var(--card-bg);
+                border-radius: var(--radius);
+                box-shadow: var(--shadow);
+            }
+
+            .group-nav {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+                justify-content: center;
+                padding-bottom: 8px;
+                border-bottom: 1px solid var(--border);
+            }
+
+            .group-tab {
+                padding: 6px 14px;
+                border: none;
+                background: transparent;
+                color: var(--text-secondary);
+                font-size: 0.8rem;
+                font-weight: 500;
+                cursor: pointer;
+                border-radius: var(--radius-sm);
+                transition: all var(--transition);
+            }
+
+            .group-tab:hover {
+                background: var(--primary-subtle);
+                color: var(--primary);
+            }
+
+            .group-tab.active {
+                background: var(--primary);
+                color: white;
+            }
+
+            .tab-container {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+                justify-content: center;
+                padding-top: 8px;
             }
 
             .tab {
-                padding: 8px 14px;
-                font-size: 0.85rem;
+                padding: 10px 18px;
+                border: none;
+                background: transparent;
+                color: var(--text-secondary);
+                font-size: 0.9rem;
+                font-weight: 500;
+                cursor: pointer;
+                border-radius: var(--radius-sm);
+                transition: all var(--transition);
             }
 
+            .tab:hover {
+                background: var(--primary-subtle);
+                color: var(--primary);
+            }
+
+            .tab.active {
+                background: var(--primary);
+                color: white;
+                box-shadow: var(--shadow-sm);
+            }
+
+            /* ============================================
+               卡片容器样式
+               ============================================ */
             .card {
-                padding: 20px;
+                background: var(--card-bg);
+                border-radius: var(--radius);
+                box-shadow: var(--shadow);
+                padding: 24px;
+                margin-bottom: 20px;
             }
 
-            .settings-bar {
+            .practice-card {
+                display: flex;
                 flex-direction: column;
+                gap: 20px;
+            }
+
+            .practice-card .content-area {
+                margin-top: 0;
+            }
+
+            /* ============================================
+               设置栏样式
+               ============================================ */
+            .settings-bar {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 20px;
+                align-items: center;
+                justify-content: center;
+                margin-bottom: 20px;
+            }
+
+            .setting-group {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .setting-group label {
+                font-size: 0.875rem;
+                color: var(--text-secondary);
+                font-weight: 500;
+            }
+
+            .number-input {
+                width: 70px;
+                padding: 8px 10px;
+                border: 2px solid var(--border);
+                border-radius: var(--radius-sm);
+                font-size: 0.9rem;
+                text-align: center;
+                outline: none;
+                transition: all var(--transition);
+                color: var(--text-primary);
+                font-weight: 500;
+            }
+
+            .number-input:focus {
+                border-color: var(--primary);
+                box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+            }
+
+            .radio-group {
+                display: flex;
                 gap: 16px;
             }
 
-            .display-area {
-                font-size: 1.75rem;
-                padding: 20px;
+            .radio-group label {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                cursor: pointer;
+                font-size: 0.875rem;
+                color: var(--text-secondary);
+                transition: color var(--transition);
             }
 
+            .radio-group label:hover {
+                color: var(--text-primary);
+            }
+
+            .radio-group input[type="radio"] {
+                width: 16px;
+                height: 16px;
+                accent-color: var(--primary);
+                cursor: pointer;
+            }
+
+            .checkbox-group {
+                display: flex;
+                align-items: center;
+            }
+
+            .checkbox-label {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                cursor: pointer;
+                font-size: 0.875rem;
+                color: var(--text-secondary);
+                font-weight: 500;
+                transition: color var(--transition);
+            }
+
+            .checkbox-label:hover {
+                color: var(--text-primary);
+            }
+
+            .checkbox-label input[type="checkbox"] {
+                width: 18px;
+                height: 18px;
+                accent-color: var(--primary);
+                cursor: pointer;
+            }
+
+            /* ============================================
+               统计栏样式
+               ============================================ */
             .stats-bar {
-                flex-direction: column;
-                gap: 12px;
-                text-align: center;
+                display: flex;
+                gap: 24px;
+                justify-content: center;
+                padding: 14px 24px;
+                background: var(--primary-subtle);
+                border-radius: var(--radius-sm);
+                font-weight: 600;
+                color: var(--primary);
+                font-size: 0.95rem;
             }
-        }
 
-        .launch-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 70vh;
-            gap: 16px;
-            text-align: center;
-        }
+            /* ============================================
+               内容区域样式
+               ============================================ */
+            .content-area {
+                display: flex;
+                flex-direction: column;
+            }
 
-        .launch-icon {
-            font-size: 5rem;
-            margin-bottom: 8px;
-            animation: float 3s ease-in-out infinite;
-        }
+            .content-area > * {
+                align-self: stretch;
+            }
 
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
+            /* 字根练习显示区域 */
+            .display-area {
+                width: auto;
+                min-height: 280px;
+                padding: 28px;
+                background: var(--bg);
+                border-radius: var(--radius);
+                font-size: 2.25rem;
+                font-weight: 600;
+                line-height: 2;
+                outline: none;
+                word-break: keep-all;
+                overflow-y: visible;
+                resize: none;
+                letter-spacing: 0.08em;
+                text-align: center;
+                border: none;
+            }
 
-        .launch-title {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin: 0;
-        }
+            .display-area span {
+                display: inline-block;
+                margin: 4px 10px;
+                padding: 6px 14px;
+                border-radius: var(--radius-sm);
+                transition: all var(--transition);
+            }
+            /* 自由练习显示区域 */
+            .free-display-area {
+                min-height: 320px;
+                font-size: 2rem;
+                line-height: 1.6;
+                letter-spacing: normal !important;
+                word-break: normal !important;
+                text-align: left;
+            }
 
-        .launch-subtitle {
-            font-size: 1.1rem;
-            color: var(--text-secondary);
-            margin: 0 0 24px 0;
-        }
+            .free-display-area span {
+                margin: 0;
+                padding: 0;
+                display: inline;
+                color: var(--text-tertiary);
+                border-radius: 4px;
+                transition: all 0.15s ease;
+            }
 
-        .launch-select {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 12px;
-        }
+            .free-display-area span.error {
+                color: var(--error);
+                background: var(--error-subtle);
+            }
 
-        .launch-select input[type="file"] {
-            display: none;
-        }
+            /* ============================================
+               输入区域样式
+               ============================================ */
+            .input-area {
+                margin-top: 24px;
+                display: flex;
+                justify-content: center;
+            }
 
-        .file-label {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 14px 32px;
-            font-size: 1.1rem;
-            font-weight: 500;
-            color: white;
-            background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
-        }
+            .free-input-area {
+                margin-top: 24px;
+                display: flex;
+                justify-content: center;
+            }
 
-        .file-label:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
-        }
+            /* 字根练习输入框 */
+            #userInput {
+                width: 100%;
+                max-width: 320px;
+                padding: 16px 24px;
+                font-size: 1.25rem;
+                font-weight: 600;
+                text-align: center;
+                border: 2px solid var(--border);
+                border-radius: var(--radius);
+                outline: none;
+                transition: all var(--transition);
+                letter-spacing: 0.15em;
+                color: var(--text-primary);
+                caret-color: transparent;
+            }
 
-        .file-label:active {
-            transform: translateY(0);
-        }
+            #userInput:focus {
+                border-color: var(--primary);
+                box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+            }
 
-        .free-display-area {
-            min-height: 320px;
-            font-size: 2rem;
-            line-height: 1.6;
-            letter-spacing: normal !important;
-            word-break: normal !important;
-            text-align: left;
-        }
+            #userInput:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
 
-        .free-display-area span {
-            margin: 0;
-            padding: 0;
-            display: inline;
-            color: var(--text-tertiary);
-            border-radius: 4px;
-            transition: all 0.15s ease;
-        }
+            /* 自由练习输入框 */
+            .free-input {
+                width: 100%;
+                min-height: 200px;
+                font-size: 1.5rem;
+                padding: 10px 16px !important;
+                line-height: 1.8;
+                letter-spacing: 0.5px;
+                border: 2px solid var(--border);
+                border-radius: var(--radius);
+                resize: vertical;
+                outline: none;
+                font-family: inherit;
+                box-sizing: border-box;
+                background: var(--bg);
+                color: var(--text-primary);
+                transition: all var(--transition);
+            }
 
-        .free-display-area span.error {
-            color: var(--error);
-            background: var(--error-subtle);
-        }
+            .free-input:focus {
+                border-color: var(--primary);
+                box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+            }
 
-        .free-input-area {
-            margin-top: 24px;
-            display: flex;
-            justify-content: center;
-        }
+            .free-input::placeholder {
+                color: var(--text-tertiary);
+            }
 
-        .free-input {
-            width: 100%;
-            min-height: 200px;
-            font-size: 1.5rem;
-            padding: 10px 16px !important;
-            line-height: 1.8;
-            letter-spacing: 0.5px;
-            border: 2px solid var(--border);
-            border-radius: var(--radius);
-            resize: vertical;
-            outline: none;
-            font-family: inherit;
-            box-sizing: border-box;
-            background: var(--bg);
-            color: var(--text-primary);
-            transition: all var(--transition);
-        }
+            #freeUserInput {
+                width: 100%;
+                height: 100%;
+                min-height: 200px;
+                font-size: 1.5rem;
+                padding: 0;
+                line-height: 1.6;
+                border: none;
+                resize: vertical;
+                outline: none;
+                font-family: inherit;
+                background: transparent;
+                color: var(--text-primary);
+            }
 
-        .free-input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-        }
+            /* ============================================
+               帮助页面样式
+               ============================================ */
+            .help-block {
+                padding: 16px 20px;
+                margin-bottom: 16px;
+                background: var(--bg);
+                border-radius: var(--radius-sm);
+            }
 
-        .free-input::placeholder {
-            color: var(--text-tertiary);
-        }
-    </style>
+            .help-block h3 {
+                font-size: 1rem;
+                color: var(--text-primary);
+                margin-bottom: 8px;
+            }
+
+            .help-block p {
+                color: var(--text-secondary);
+                font-size: 0.9rem;
+                margin-bottom: 12px;
+            }
+
+            .help-items {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .help-items code {
+                display: inline-block;
+                background: var(--primary-subtle);
+                color: var(--primary);
+                padding: 4px 10px;
+                border-radius: 6px;
+                font-weight: 600;
+            }
+
+            /* ============================================
+               字体容器
+               ============================================ */
+            #font-container {
+                font-family: '宋体', 'Yuniversus', 'WenJin Mincho Plane 0', 'WenJin Mincho Plane 2', 'WenJin Mincho Plane 3', 'TH-Times', 'TH-Tshyn-P0', 'TH-Tshyn-P1', 'TH-Tshyn-P2', 'TH-Tshyn-P16', 'SimSun-ExtB', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            }
+
+            /* ============================================
+               响应式设计
+               ============================================ */
+            @media (max-width: 640px) {
+                body {
+                    padding: 16px;
+                }
+
+                .nav-tabs {
+                    gap: 6px;
+                    padding: 4px;
+                }
+
+                .tab {
+                    padding: 8px 14px;
+                    font-size: 0.85rem;
+                }
+
+                .card {
+                    padding: 20px;
+                }
+
+                .settings-bar {
+                    flex-direction: column;
+                    gap: 16px;
+                }
+
+                .display-area {
+                    font-size: 1.75rem;
+                    padding: 20px;
+                }
+
+                .stats-bar {
+                    flex-direction: column;
+                    gap: 12px;
+                    text-align: center;
+                }
+            }
+        </style>
 </head>
 
 <body>
     <div id="font-container"></div>
     <div class="app-container"></div>
-    <template id="practice-template">
-        <div class="card practice-card">
-            <div class="settings-bar">
-                <div class="setting-group">
-                    <label>单次字数</label>
-                    <input id="oneTimeCount" class="number-input" type="number" min="10" max="500" value="30">
-                </div>
-                <div class="setting-group">
-                    <label>练习总数</label>
-                    <input id="totalCount" class="number-input" type="number" min="10" max="500" value="120">
-                </div>
-                <div class="setting-group checkbox-group">
-                    <label class="checkbox-label">
-                        <input id="showHint" type="checkbox">
-                        <span>显示提示</span>
-                    </label>
-                </div>
-                <div class="radio-group"></div>
-            </div>
-            <div class="stats-bar">
-                <span id="progressLabel"></span>
-                <span id="speedLabel"></span>
-                <span id="keystrokeSpeedLabel">击键：0.00次/秒</span>
-                <span id="accuracyLabel">键准：100%</span>
-            </div>
-            <div class="content-area" id="content">
-                <div class="display-area" id="rawArea"></div>
-                <div class="input-area">
-                    <input id="userInput">
-                </div>
-            </div>
-        </div>
-    </template>
-    <template id="free-template">
-        <div class="card practice-card">
-            <div class="stats-bar">
-                <span id="freeSpeedLabel"></span>
-                <span id="freeKeystrokeSpeedLabel">击键：0.00次/秒</span>
-                <span id="freeAccuracyLabel">键准：100%</span>
-            </div>
-            <div class="content-area" id="freeContent">
-                <div class="display-area free-display-area" id="freeArea"></div>
-                <div class="input-area free-input-area">
-                    <textarea id="freeUserInput" class="free-input" placeholder="自由输入" rows="3"></textarea>
-                </div>
-            </div>
-        </div>
-    </template>
 </body>
 
 </html>
