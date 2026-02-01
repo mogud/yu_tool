@@ -1364,590 +1364,110 @@
         window.addEventListener('load', App.init)
     </script>
     <style>
-            /* ============================================
-               CSS 变量（设计系统）
-               ============================================ */
             :root {
-                /* 主色调 */
                 --primary: #6366f1;
                 --primary-subtle: #eef2ff;
-                /* 状态色 */
                 --error: #ef4444;
                 --error-subtle: #fee2e2;
-                /* 背景与文本 */
                 --bg: #f8fafc;
                 --card-bg: #ffffff;
                 --text-primary: #1e293b;
                 --text-secondary: #64748b;
                 --text-tertiary: #cbd5e1;
                 --border: #e2e8f0;
-                /* 阴影与圆角 */
-                --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-                --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+                --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
                 --radius: 12px;
                 --radius-sm: 8px;
-                --transition: 0.2s ease;
             }
-            /* ============================================
-               基础样式重置
-               ============================================ */
-            html {
-                font-size: 16px;
-                line-height: 1.6;
-                color: var(--text-primary);
-                background: var(--bg);
-            }
+            html { font-size: 16px; line-height: 1.6; color: var(--text-primary); background: var(--bg); }
+            body { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 24px; }
+            .app-container { width: 100%; max-width: 900px; }
 
-            body {
-                min-height: 100vh;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                padding: 24px;
-            }
+            /* 启动界面 */
+            .launch-container { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 70vh; gap: 16px; text-align: center; }
+            .launch-icon { font-size: 5rem; margin-bottom: 8px; }
+            .launch-title { font-size: 2.5rem; font-weight: 700; color: var(--text-primary); margin: 0; }
+            .launch-subtitle { font-size: 1.1rem; color: var(--text-secondary); margin: 0 0 24px 0; }
+            .launch-select input[type="file"] { display: none; }
+            .file-label { display: inline-flex; align-items: center; gap: 8px; padding: 14px 32px; font-size: 1.1rem; font-weight: 500; color: white; background: var(--primary); border: none; border-radius: 12px; cursor: pointer; transition: 0.2s; }
+            .file-label:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4); }
 
-            .app-container {
-                width: 100%;
-                max-width: 900px;
-            }
+            /* 头部 */
+            .header { text-align: center; margin-bottom: 24px; }
+            .logo { font-size: 2rem; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
+            .version-info-bar { display: inline-flex; align-items: center; gap: 0; padding: 8px 16px; background: var(--card-bg); border-radius: 20px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); }
+            .version-item { display: flex; align-items: center; gap: 6px; padding: 4px 8px; }
+            .version-label { color: var(--text-tertiary); font-size: 0.75rem; font-weight: 500; text-transform: uppercase; }
+            .version-value { color: var(--text-secondary); font-size: 0.875rem; font-weight: 600; }
+            .version-divider { width: 1px; height: 16px; background: var(--border); }
 
-            /* ============================================
-               启动界面样式
-               ============================================ */
-            .launch-container {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                min-height: 70vh;
-                gap: 16px;
-                text-align: center;
-            }
+            /* 导航标签 */
+            .nav-tabs { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; padding: 12px; background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); }
+            .group-nav { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+            .group-tab, .tab { padding: 6px 14px; border: none; background: transparent; color: var(--text-secondary); font-size: 0.85rem; font-weight: 500; cursor: pointer; border-radius: var(--radius-sm); transition: 0.2s; }
+            .group-tab:hover, .tab:hover { background: var(--primary-subtle); color: var(--primary); }
+            .group-tab.active, .tab.active { background: var(--primary); color: white; }
+            .tab-container { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; padding-top: 8px; }
+            .tab { padding: 10px 18px; }
+            .free-tab { margin-left: auto; border: 2px solid var(--primary); color: var(--primary); }
+            .free-tab.active { background: var(--primary); color: white; }
 
-            .launch-icon {
-                font-size: 5rem;
-                margin-bottom: 8px;
-                animation: float 3s ease-in-out infinite;
-            }
+            /* 卡片 */
+            .card { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px; margin-bottom: 20px; }
+            .practice-card { display: flex; flex-direction: column; gap: 20px; }
 
-            @keyframes float {
-                0%, 100% { transform: translateY(0); }
-                50% { transform: translateY(-10px); }
-            }
-
-            .launch-title {
-                font-size: 2.5rem;
-                font-weight: 700;
-                color: var(--text-primary);
-                margin: 0;
-            }
-
-            .launch-subtitle {
-                font-size: 1.1rem;
-                color: var(--text-secondary);
-                margin: 0 0 24px 0;
-            }
-
-            .launch-select input[type="file"] {
-                display: none;
-            }
-
-            .file-label {
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                padding: 14px 32px;
-                font-size: 1.1rem;
-                font-weight: 500;
-                color: white;
-                background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
-                border: none;
-                border-radius: 12px;
-                cursor: pointer;
-                transition: transform 0.2s, box-shadow 0.2s;
-                box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
-            }
-
-            .file-label:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
-            }
-
-            .file-label:active {
-                transform: translateY(0);
-            }
-
-            /* ============================================
-               头部样式
-               ============================================ */
-            .header {
-                text-align: center;
-                margin-bottom: 24px;
-            }
-
-            .logo {
-                font-size: 2rem;
-                font-weight: 700;
-                color: var(--text-primary);
-                margin-bottom: 8px;
-                letter-spacing: -0.02em;
-            }
-
-            .version-info-bar {
-                display: inline-flex;
-                align-items: center;
-                gap: 0;
-                padding: 8px 16px;
-                background: var(--card-bg);
-                border-radius: 20px;
-                box-shadow: var(--shadow-sm);
-            }
-
-            .version-item {
-                display: flex;
-                align-items: center;
-                gap: 6px;
-                padding: 4px 8px;
-            }
-
-            .version-label {
-                color: var(--text-tertiary);
-                font-size: 0.75rem;
-                font-weight: 500;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-            }
-
-            .version-value {
-                color: var(--text-secondary);
-                font-size: 0.875rem;
-                font-weight: 600;
-            }
-
-            .version-divider {
-                width: 1px;
-                height: 16px;
-                background: var(--border);
-            }
-
-            /* ============================================
-               导航标签样式
-               ============================================ */
-            .nav-tabs {
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-                margin-bottom: 24px;
-                padding: 12px;
-                background: var(--card-bg);
-                border-radius: var(--radius);
-                box-shadow: var(--shadow);
-            }
-
-            .group-nav {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 6px;
-                justify-content: center;
-                padding-bottom: 8px;
-                border-bottom: 1px solid var(--border);
-            }
-
-            .group-tab {
-                padding: 6px 14px;
-                border: none;
-                background: transparent;
-                color: var(--text-secondary);
-                font-size: 0.8rem;
-                font-weight: 500;
-                cursor: pointer;
-                border-radius: var(--radius-sm);
-                transition: all var(--transition);
-            }
-
-            .group-tab:hover {
-                background: var(--primary-subtle);
-                color: var(--primary);
-            }
-
-            .group-tab.active {
-                background: var(--primary);
-                color: white;
-            }
-
-            .tab-container {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 6px;
-                justify-content: center;
-                padding-top: 8px;
-            }
-
-            .free-tab {
-                margin-left: auto;
-                border: 2px solid var(--primary);
-                color: var(--primary);
-            }
-
-            .free-tab:hover {
-                background: var(--primary-subtle);
-            }
-
-            .free-tab.active {
-                background: var(--primary);
-                color: white;
-            }
-
-            .tab {
-                padding: 10px 18px;
-                border: none;
-                background: transparent;
-                color: var(--text-secondary);
-                font-size: 0.9rem;
-                font-weight: 500;
-                cursor: pointer;
-                border-radius: var(--radius-sm);
-                transition: all var(--transition);
-            }
-
-            .tab:hover {
-                background: var(--primary-subtle);
-                color: var(--primary);
-            }
-
-            .tab.active {
-                background: var(--primary);
-                color: white;
-                box-shadow: var(--shadow-sm);
-            }
-
-            /* ============================================
-               卡片容器样式
-               ============================================ */
-            .card {
-                background: var(--card-bg);
-                border-radius: var(--radius);
-                box-shadow: var(--shadow);
-                padding: 24px;
-                margin-bottom: 20px;
-            }
-
-            .practice-card {
-                display: flex;
-                flex-direction: column;
-                gap: 20px;
-            }
-
-            /* ============================================
-               设置栏样式
-               ============================================ */
-            .settings-bar {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 20px;
-                align-items: center;
-                justify-content: center;
-                margin-bottom: 20px;
-            }
-
-            .setting-group {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-
-            .setting-group label {
-                font-size: 0.875rem;
-                color: var(--text-secondary);
-                font-weight: 500;
-            }
-
-            .radio-group {
-                display: flex;
-                gap: 16px;
-            }
-
-            .radio-group label, .checkbox-label {
-                display: flex;
-                align-items: center;
-                cursor: pointer;
-                font-size: 0.875rem;
-                color: var(--text-secondary);
-                transition: color var(--transition);
-            }
-
-            .radio-group label:hover, .checkbox-label:hover {
-                color: var(--text-primary);
-            }
-
-            .radio-group label { gap: 6px; }
+            /* 设置栏 */
+            .settings-bar { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: center; margin-bottom: 20px; }
+            .setting-group { display: flex; align-items: center; gap: 8px; }
+            .setting-group label { font-size: 0.875rem; color: var(--text-secondary); font-weight: 500; }
+            .radio-group { display: flex; gap: 16px; }
+            .radio-group label, .checkbox-label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.875rem; color: var(--text-secondary); }
             .checkbox-label { gap: 8px; font-weight: 500; }
+            .radio-group input[type="radio"], .checkbox-label input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
 
-            .radio-group input[type="radio"] {
-                width: 16px;
-                height: 16px;
-                accent-color: var(--primary);
-                cursor: pointer;
-            }
-
-            .checkbox-group {
-                display: flex;
-                align-items: center;
-            }
-
-            .checkbox-label input[type="checkbox"] {
-                width: 18px;
-                height: 18px;
-                accent-color: var(--primary);
-                cursor: pointer;
-            }
-
-            /* ============================================
-               文章选择下拉框样式
-               ============================================ */
-            .text-select, .number-input {
-                padding: 8px 12px;
-                border: 2px solid var(--border);
-                border-radius: var(--radius-sm);
-                font-size: 0.9rem;
-                color: var(--text-primary);
-                background: var(--card-bg);
-                cursor: pointer;
-                outline: none;
-                transition: all var(--transition);
-            }
-
+            /* 输入控件 */
+            .text-select, .number-input { padding: 8px 12px; border: 2px solid var(--border); border-radius: var(--radius-sm); font-size: 0.9rem; color: var(--text-primary); background: var(--card-bg); outline: none; transition: 0.2s; }
             .number-input { text-align: center; width: 70px; font-weight: 500; }
+            .text-select:focus, .number-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); }
 
-            .text-select:focus, .number-input:focus {
-                border-color: var(--primary);
-                box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-            }
+            /* 统计栏 */
+            .stats-bar { display: flex; gap: 24px; justify-content: center; padding: 14px 24px; background: var(--primary-subtle); border-radius: var(--radius-sm); font-weight: 600; color: var(--primary); font-size: 0.95rem; }
 
-            /* ============================================
-               统计栏样式
-               ============================================ */
-            .stats-bar {
-                display: flex;
-                gap: 24px;
-                justify-content: center;
-                padding: 14px 24px;
-                background: var(--primary-subtle);
-                border-radius: var(--radius-sm);
-                font-weight: 600;
-                color: var(--primary);
-                font-size: 0.95rem;
-            }
+            /* 内容区域 */
+            .content-area { display: flex; flex-direction: column; }
+            .display-area { min-height: 280px; padding: 28px; background: var(--bg); border-radius: var(--radius); font-size: 2.25rem; font-weight: 600; line-height: 2; text-align: center; border: none; letter-spacing: 0.08em; word-break: keep-all; }
+            .display-area span { display: inline-block; margin: 4px 10px; padding: 6px 14px; border-radius: var(--radius-sm); transition: 0.2s; }
+            .free-display-area { min-height: 320px; font-size: 2rem; line-height: 1.6; text-align: left; word-break: break-word; overflow-wrap: anywhere; }
+            .free-display-area span { margin: 0; padding: 0; display: inline; color: var(--text-tertiary); border-radius: 4px; transition: 0.15s; }
+            .free-display-area span.error { color: var(--error); background: var(--error-subtle); }
 
-            /* ============================================
-               内容区域样式
-               ============================================ */
-            .content-area {
-                display: flex;
-                flex-direction: column;
-            }
+            /* 输入区域 */
+            .input-area, .free-input-area { margin-top: 24px; display: flex; justify-content: center; }
+            #userInput { width: 100%; max-width: 320px; padding: 16px 24px; font-size: 1.25rem; font-weight: 600; text-align: center; border: 2px solid var(--border); border-radius: var(--radius); outline: none; transition: 0.2s; letter-spacing: 0.15em; color: var(--text-primary); caret-color: transparent; }
+            #userInput:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12); }
+            #userInput:disabled { opacity: 0.5; cursor: not-allowed; }
+            .free-input { width: 100%; min-height: 200px; font-size: 1.5rem; padding: 10px 16px; line-height: 1.8; border: 2px solid var(--border); border-radius: var(--radius); resize: vertical; outline: none; font-family: inherit; background: var(--bg); color: var(--text-primary); transition: 0.2s; }
+            .free-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); }
+            .free-input::placeholder { color: var(--text-tertiary); }
+            #freeUserInput { padding: 0; line-height: 1.6; border: none; background: transparent; }
 
-            /* 字根练习显示区域 */
-            .display-area {
-                width: auto;
-                min-height: 280px;
-                padding: 28px;
-                background: var(--bg);
-                border-radius: var(--radius);
-                font-size: 2.25rem;
-                font-weight: 600;
-                line-height: 2;
-                outline: none;
-                word-break: keep-all;
-                overflow-y: visible;
-                resize: none;
-                letter-spacing: 0.08em;
-                text-align: center;
-                border: none;
-            }
+            /* 帮助页面 */
+            .help-block { padding: 16px 20px; margin-bottom: 16px; background: var(--bg); border-radius: var(--radius-sm); }
+            .help-block h3 { font-size: 1rem; color: var(--text-primary); margin-bottom: 8px; }
+            .help-block p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 12px; }
+            .help-items { display: flex; flex-direction: column; gap: 8px; }
+            .help-items code { display: inline-block; background: var(--primary-subtle); color: var(--primary); padding: 4px 10px; border-radius: 6px; font-weight: 600; }
 
-            .display-area span {
-                display: inline-block;
-                margin: 4px 10px;
-                padding: 6px 14px;
-                border-radius: var(--radius-sm);
-                transition: all var(--transition);
-            }
-            /* 自由练习显示区域 */
-            .free-display-area {
-                min-height: 320px;
-                font-size: 2rem;
-                line-height: 1.6;
-                letter-spacing: normal !important;
-                word-break: normal !important;
-                text-align: left;
-            }
+            #font-container { font-family: '宋体', 'Yuniversus', 'WenJin Mincho Plane 0', 'WenJin Mincho Plane 2', 'WenJin Mincho Plane 3', 'TH-Times', 'TH-Tshyn-P0', 'TH-Tshyn-P1', 'TH-Tshyn-P2', 'TH-Tshyn-P16', 'SimSun-ExtB', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
 
-            .free-display-area span {
-                margin: 0;
-                padding: 0;
-                display: inline;
-                color: var(--text-tertiary);
-                border-radius: 4px;
-                transition: all 0.15s ease;
-            }
-
-            .free-display-area span.error {
-                color: var(--error);
-                background: var(--error-subtle);
-            }
-
-            /* ============================================
-               输入区域样式
-               ============================================ */
-            .input-area, .free-input-area {
-                margin-top: 24px;
-                display: flex;
-                justify-content: center;
-            }
-
-            /* 字根练习输入框 */
-            #userInput {
-                width: 100%;
-                max-width: 320px;
-                padding: 16px 24px;
-                font-size: 1.25rem;
-                font-weight: 600;
-                text-align: center;
-                border: 2px solid var(--border);
-                border-radius: var(--radius);
-                outline: none;
-                transition: all var(--transition);
-                letter-spacing: 0.15em;
-                color: var(--text-primary);
-                caret-color: transparent;
-            }
-
-            #userInput:focus {
-                border-color: var(--primary);
-                box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
-            }
-
-            #userInput:disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
-            }
-
-            /* 自由练习输入框 */
-            .free-input {
-                width: 100%;
-                min-height: 200px;
-                font-size: 1.5rem;
-                padding: 10px 16px;
-                line-height: 1.8;
-                letter-spacing: 0.5px;
-                border: 2px solid var(--border);
-                border-radius: var(--radius);
-                resize: vertical;
-                outline: none;
-                font-family: inherit;
-                background: var(--bg);
-                color: var(--text-primary);
-                transition: all var(--transition);
-            }
-
-            .free-input:focus {
-                border-color: var(--primary);
-                box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-            }
-
-            .free-input::placeholder {
-                color: var(--text-tertiary);
-            }
-
-            #freeUserInput {
-                padding: 0;
-                line-height: 1.6;
-                border: none;
-                background: transparent;
-            }
-
-            /* ============================================
-               帮助页面样式
-               ============================================ */
-            .help-block {
-                padding: 16px 20px;
-                margin-bottom: 16px;
-                background: var(--bg);
-                border-radius: var(--radius-sm);
-            }
-
-            .help-block h3 {
-                font-size: 1rem;
-                color: var(--text-primary);
-                margin-bottom: 8px;
-            }
-
-            .help-block p {
-                color: var(--text-secondary);
-                font-size: 0.9rem;
-                margin-bottom: 12px;
-            }
-
-            .help-items {
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-            }
-
-            .help-items code {
-                display: inline-block;
-                background: var(--primary-subtle);
-                color: var(--primary);
-                padding: 4px 10px;
-                border-radius: 6px;
-                font-weight: 600;
-            }
-
-            /* ============================================
-               字体容器
-               ============================================ */
-            #font-container {
-                font-family: '宋体', 'Yuniversus', 'WenJin Mincho Plane 0', 'WenJin Mincho Plane 2', 'WenJin Mincho Plane 3', 'TH-Times', 'TH-Tshyn-P0', 'TH-Tshyn-P1', 'TH-Tshyn-P2', 'TH-Tshyn-P16', 'SimSun-ExtB', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            }
-
-            /* ============================================
-               响应式设计
-               ============================================ */
             @media (max-width: 640px) {
-                body {
-                    padding: 16px;
-                }
-
-                .nav-tabs {
-                    gap: 6px;
-                    padding: 4px;
-                }
-
-                .tab {
-                    padding: 8px 14px;
-                    font-size: 0.85rem;
-                }
-
-                .card {
-                    padding: 20px;
-                }
-
-                .settings-bar {
-                    flex-direction: column;
-                    gap: 16px;
-                }
-
-                .display-area {
-                    font-size: 1.75rem;
-                    padding: 20px;
-                }
-
-                .stats-bar {
-                    flex-direction: column;
-                    gap: 12px;
-                    text-align: center;
-                }
+                body { padding: 16px; }
+                .nav-tabs { gap: 6px; padding: 4px; }
+                .tab { padding: 8px 14px; font-size: 0.85rem; }
+                .card { padding: 20px; }
+                .settings-bar { flex-direction: column; gap: 16px; }
+                .display-area { font-size: 1.75rem; padding: 20px; }
+                .stats-bar { flex-direction: column; gap: 12px; text-align: center; }
             }
         </style>
 </head>
