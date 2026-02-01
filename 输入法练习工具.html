@@ -349,10 +349,10 @@
             // 编译快捷键
             const compileKeyBindings = () => {
                 compiledKeyBindings = []
-                const bindings = config.key_bindings || []
+                const bindings = (config && config.key_bindings) ? config.key_bindings : []
                 for (const binding of bindings) {
-                    const key = binding.key.toLowerCase().replace(/\s+/g, '')
-                    const parts = key.split('+')
+                    const key = binding.key.toLowerCase()
+                    const parts = key.split('+').map(p => p.trim()).filter(p => p)
                     const modifiers = parts.filter(p => ['ctrl', 'alt', 'shift', 'meta'].includes(p))
                     const keyPart = parts.find(p => !['ctrl', 'alt', 'shift', 'meta'].includes(p))
                     if (keyPart) {
@@ -364,6 +364,8 @@
             // 初始化快捷键
             const initKeyBindings = () => {
                 compileKeyBindings()
+                if (compiledKeyBindings.length === 0) return
+
                 const handler = (e) => {
                     for (const binding of compiledKeyBindings) {
                         const ctrlMatch = binding.modifiers.includes('ctrl') ? e.ctrlKey : !e.ctrlKey
@@ -666,6 +668,7 @@
                 updateTabStyles(val)
                 showTemplate("practice-template")
                 initDomReferences()
+                initKeyBindings() // 重新注册快捷键（cleanup会移除）
                 toggleInputArea(true)
 
                 const rawArea = DOMRefs.get('rawArea')
@@ -697,7 +700,10 @@
             const loadConfig = async (text, filePath) => {
                 // 检查缓存
                 if (ConfigCache.isSameConfig(filePath, text)) {
-                    console.log('使用缓存配置')
+                    // 刷新快捷键
+                    initTabs()
+                    initKeyBindings()
+                    displayHelp()
                     return true
                 }
 
