@@ -67,6 +67,7 @@ type TemplateFont struct {
 // TemplateTab represents a tab in the template
 type TemplateTab struct {
 	Label string `toml:"label"`
+	Group string `toml:"group"`
 	Type  string `toml:"type"`
 	Beg   int    `toml:"beg"`
 	End   int    `toml:"end"`

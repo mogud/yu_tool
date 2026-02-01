@@ -267,6 +267,7 @@
                         if (tab.type !== 'help' && (typeof tab.beg !== 'number' || typeof tab.end !== 'number')) {
                             errors.push(`tabs[${i}] 缺少 beg 或 end`)
                         }
+                        if (typeof tab.group !== 'string') errors.push(`tabs[${i}] group 应为字符串`)
                     })
                 }
 
@@ -677,22 +678,88 @@
             // 初始化标签
             const initTabs = () => {
                 const nav = document.querySelector(".nav-tabs")
-                nav.querySelectorAll(".tab").forEach(t => t.remove())
+                nav.innerHTML = ''
 
+                // 按 group 分组
+                const groups = {}
+                let firstGroup = null
                 config.tabs.forEach((tabConfig, i) => {
+                    const groupName = tabConfig.group || '默认'
+                    if (!groups[groupName]) {
+                        groups[groupName] = []
+                        if (!firstGroup) firstGroup = groupName
+                    }
+                    groups[groupName].push({ ...tabConfig, index: i })
+                })
+
+                // 添加分组导航栏
+                const groupNav = document.createElement("div")
+                groupNav.className = "group-nav"
+                Object.keys(groups).forEach(groupName => {
+                    const groupBtn = document.createElement("button")
+                    groupBtn.className = "group-tab"
+                    groupBtn.textContent = groupName
+                    groupBtn.dataset.group = groupName
+                    groupBtn.onclick = () => switchGroup(groupName)
+                    groupNav.appendChild(groupBtn)
+                })
+                nav.appendChild(groupNav)
+
+                // 添加当前分组的 tabs
+                const tabContainer = document.createElement("div")
+                tabContainer.className = "tab-container"
+                nav.appendChild(tabContainer)
+
+                // 默认显示第一个分组
+                if (firstGroup) {
+                    switchGroup(firstGroup, false)
+                }
+            }
+
+            // 切换分组
+            const switchGroup = (groupName, updateActiveTab = true) => {
+                const groupTab = document.querySelector(`.group-tab[data-group="${groupName}"]`)
+                if (groupTab) {
+                    document.querySelectorAll(".group-tab").forEach(t => t.classList.remove("active"))
+                    groupTab.classList.add("active")
+                }
+
+                // 渲染该分组的 tabs
+                const tabContainer = document.querySelector(".tab-container")
+                tabContainer.innerHTML = ''
+
+                const groups = {}
+                config.tabs.forEach((tabConfig, i) => {
+                    const g = tabConfig.group || '默认'
+                    if (!groups[g]) groups[g] = []
+                    groups[g].push({ ...tabConfig, index: i })
+                })
+
+                const tabs = groups[groupName] || []
+                tabs.forEach(tab => {
                     const btn = document.createElement("button")
                     btn.className = "tab"
-                    btn.id = `tab${i}`
-                    btn.textContent = tabConfig.label
+                    btn.id = `tab${tab.index}`
+                    btn.textContent = tab.label
                     btn.onclick = () => {
-                        if (tabConfig.type === "help") {
+                        if (tab.type === "help") {
                             displayHelp()
                         } else {
-                            startPractice(i)
+                            startPractice(tab.index)
                         }
                     }
-                    nav.appendChild(btn)
+                    tabContainer.appendChild(btn)
                 })
+
+                // 激活该分组的第一个 tab
+                if (updateActiveTab && tabs.length > 0) {
+                    const firstTab = tabs[0]
+                    if (firstTab.type === "help") {
+                        displayHelp()
+                    } else {
+                        startPractice(firstTab.index)
+                    }
+                }
             }
 
             // 显示帮助
@@ -707,6 +774,17 @@
                 const accuracyLabel = DOMRefs.get('accuracyLabel')
                 if (keystrokeSpeedLabel) keystrokeSpeedLabel.textContent = "击键：0.00次/秒"
                 if (accuracyLabel) accuracyLabel.textContent = "键准：100%"
+
+                // 切换到 help 所在的分组
+                const helpTab = config.tabs.find(t => t.type === 'help')
+                if (helpTab) {
+                    const groupName = helpTab.group || '默认'
+                    const groupTab = document.querySelector(`.group-tab[data-group="${groupName}"]`)
+                    if (groupTab) {
+                        document.querySelectorAll(".group-tab").forEach(t => t.classList.remove("active"))
+                        groupTab.classList.add("active")
+                    }
+                }
             }
 
             // 开始练习
@@ -749,6 +827,17 @@
                 loadNextBatch()
                 progressLabel.textContent = `\t进度：0/${AppState.get('totalWords').length}字`
                 resetMetricsTimer()
+
+                // 切换到当前 tab 所在的分组
+                const curTabConfig = config.tabs[val]
+                if (curTabConfig) {
+                    const groupName = curTabConfig.group || '默认'
+                    const groupTab = document.querySelector(`.group-tab[data-group="${groupName}"]`)
+                    if (groupTab) {
+                        document.querySelectorAll(".group-tab").forEach(t => t.classList.remove("active"))
+                        groupTab.classList.add("active")
+                    }
+                }
             }
 
             // 加载配置
@@ -953,14 +1042,52 @@
 
         .nav-tabs {
             display: flex;
-            flex-wrap: wrap;
+            flex-direction: column;
             gap: 8px;
-            justify-content: center;
             margin-bottom: 24px;
-            padding: 6px;
+            padding: 12px;
             background: var(--card-bg);
             border-radius: var(--radius);
             box-shadow: var(--shadow);
+        }
+
+        .group-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: center;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .group-tab {
+            padding: 6px 14px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            transition: all var(--transition);
+        }
+
+        .group-tab:hover {
+            background: var(--primary-subtle);
+            color: var(--primary);
+        }
+
+        .group-tab.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .tab-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: center;
+            padding-top: 8px;
         }
 
         .tab {
