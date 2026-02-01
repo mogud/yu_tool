@@ -911,118 +911,63 @@
                 if (userInput) userInput.value = ""
             }
 
-                        // 显示模板
+            // 显示模板
+            const showTemplate = (templateId, helpIndex = 0, textItems = [], modeConfigs = []) => {
+                const mainEl = document.querySelector("main")
 
-                        const showTemplate = (templateId, helpIndex = 0, textItems = [], modeConfigs = []) => {
+                if (templateId === "help-template") {
+                    mainEl.innerHTML = UIComponents.renderHelpContent(config.help?.[helpIndex])
+                    return
+                }
 
-                            const mainEl = document.querySelector("main")
+                let content = ''
+                if (templateId === "practice-template") {
+                    content = UIComponents.renderPracticeTemplate(modeConfigs)
+                } else if (templateId === "free-template") {
+                    content = UIComponents.renderFreeTemplate(textItems)
+                }
 
-            
+                mainEl.innerHTML = content
 
-                            if (templateId === "help-template") {
-
-                                mainEl.innerHTML = UIComponents.renderHelpContent(config.help?.[helpIndex])
-
-                                return
-
-                            }
-
-            
-
-                            let content = ''
-
-                            if (templateId === "practice-template") {
-
-                                content = UIComponents.renderPracticeTemplate(modeConfigs)
-
-                            } else if (templateId === "free-template") {
-
-                                content = UIComponents.renderFreeTemplate(textItems)
-
-                            }
-
-            
-
-                            mainEl.innerHTML = content
-
-            
-
-                            // 绑定事件
-
-                            if (templateId === "practice-template") {
-
-                                bindPracticeTemplateEvents()
-
-                            }
-
-                        }
+                if (templateId === "practice-template") {
+                    bindPracticeTemplateEvents()
+                }
+            }
 
 
 
-                        // 绑定练习模板事件
-
-                        const bindPracticeTemplateEvents = () => {
-
-                            // 单选按钮事件
-
-                            const radioButtons = document.querySelectorAll('input[name="radiobutton"]')
-
-                            radioButtons.forEach(input => {
-
-                                input.onclick = () => {
-
-                                    const modeIdx = parseInt(input.dataset.mode)
-
-                                    SessionStore.set('radioMode', modeIdx)
-
-                                    startPractice(AppState.get('curTab'))
-
-                                }
-
-                            })
-
-
-
-                            // 提示复选框
-
-                            const hintCheckbox = document.getElementById('showHint')
-
-                            if (hintCheckbox) {
-
-                                hintCheckbox.onchange = (e) => {
-
-                                    SessionStore.set('showHint', e.target.checked)
-
-                                    updatePlaceholder()
-
-                                }
-
-                            }
-
-
-
-                            // 数字输入框
-
-                            const oneTimeCountInput = document.getElementById('oneTimeCount')
-
-                            if (oneTimeCountInput) {
-
-                                oneTimeCountInput.onchange = (e) => SessionStore.set('oneTimeCount', e.target.value)
-
-                            }
-
-
-
-                            const totalCountInput = document.getElementById('totalCount')
-
-                            if (totalCountInput) {
-
-                                totalCountInput.onchange = (e) => SessionStore.set('totalCount', e.target.value)
-
-                            }
-
-                        }
-
+                                                // 绑定练习模板事件
+                                    const bindPracticeTemplateEvents = () => {
+                                        // 单选按钮事件
+                                        const radioButtons = document.querySelectorAll('input[name="radiobutton"]')
+                                        radioButtons.forEach(input => {
+                                            input.onclick = () => {
+                                                const modeIdx = parseInt(input.dataset.mode)
+                                                SessionStore.set('radioMode', modeIdx)
+                                                startPractice(AppState.get('curTab'))
+                                            }
+                                        })
+                        
+                                        // 提示复选框
+                                        const hintCheckbox = document.getElementById('showHint')
+                                        if (hintCheckbox) {
+                                            hintCheckbox.onchange = (e) => {
+                                                SessionStore.set('showHint', e.target.checked)
+                                                updatePlaceholder()
+                                            }
+                                        }
+                        
+                                        // 数字输入框
+                                        const oneTimeCountInput = document.getElementById('oneTimeCount')
+                                        if (oneTimeCountInput) {
+                                            oneTimeCountInput.onchange = (e) => SessionStore.set('oneTimeCount', e.target.value)
+                                        }
+                        
+                                        const totalCountInput = document.getElementById('totalCount')
+                                        if (totalCountInput) {
+                                            totalCountInput.onchange = (e) => SessionStore.set('totalCount', e.target.value)
+                                        }
+                                    }
             // 初始化标签
             const initTabs = () => {
                 const nav = document.querySelector(".nav-tabs")
@@ -1042,11 +987,11 @@
                 // 渲染分组导航（包含 free tab）
                 nav.innerHTML = UIComponents.renderGroupNav(groups, null)
 
-// 绑定 free tab 点击事件
-const freeTab = document.getElementById('tab-free')
-if (freeTab) {
-    freeTab.onclick = () => startPractice('free')
-}
+                // 绑定 free tab 点击事件
+                const freeTab = document.getElementById('tab-free')
+                if (freeTab) {
+                    freeTab.onclick = () => startPractice('free')
+                }
 
                 // 添加当前分组的 tabs 容器
                 const tabContainer = document.createElement("div")
