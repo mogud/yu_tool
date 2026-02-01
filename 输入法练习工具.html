@@ -155,7 +155,7 @@
         // ============================================
         const AppState = (() => {
             let state = {
-                speedTimer: null,
+                metricsTimer: null,
                 wordCount: 0,
                 startTime: 0,
                 curInputMax: 0,
@@ -167,23 +167,20 @@
                 rawAreaFonts: null,
                 cleanupHandlers: [],
                 // 击键速度和键准相关状态
-                keystrokeTimer: null,
-                keystrokeStartTime: 0,
                 totalKeystrokes: 0,
                 errorKeystrokes: 0
             }
 
             const reset = () => {
                 // 清理所有定时器
-                if (state.speedTimer) clearTimeout(state.speedTimer)
+                if (state.metricsTimer) clearTimeout(state.metricsTimer)
                 if (state.inputTimer) clearTimeout(state.inputTimer)
-                if (state.keystrokeTimer) clearTimeout(state.keystrokeTimer)
                 // 执行所有清理函数
                 state.cleanupHandlers.forEach(fn => fn())
                 state.cleanupHandlers = []
                 // 重置状态
                 state = {
-                    speedTimer: null,
+                    metricsTimer: null,
                     wordCount: 0,
                     startTime: 0,
                     curInputMax: 0,
@@ -195,8 +192,6 @@
                     rawAreaFonts: state.rawAreaFonts,
                     cleanupHandlers: [],
                     // 击键速度和键准相关状态
-                    keystrokeTimer: null,
-                    keystrokeStartTime: 0,
                     totalKeystrokes: 0,
                     errorKeystrokes: 0
                 }
@@ -400,81 +395,51 @@
                 AppState.addCleanup(() => document.removeEventListener('keydown', handler))
             }
 
-            // 更新速度显示
-            const updateSpeedDisplay = () => {
-                const timer = setTimeout(updateSpeedDisplay, 500)
-                AppState.set('speedTimer', timer)
+            // 更新所有指标显示（速度、击键速度、键准）
+            const updateMetricsDisplay = () => {
+                const timer = setTimeout(updateMetricsDisplay, 500)
+                AppState.set('metricsTimer', timer)
 
+                // 更新打字速度（字/分）
                 const wordCount = AppState.get('wordCount')
                 if (wordCount > 0) {
                     const speed = wordCount * 60 * 1000 / (new Date().getTime() - AppState.get('startTime'))
                     DOMRefs.get('speedLabel').textContent = `速度：${speed.toFixed(2)}字/分`
                 }
-            }
 
-            // 更新击键速度显示
-            const updateKeystrokeSpeedDisplay = () => {
+                // 更新击键速度（次/秒）
                 const totalKeystrokes = AppState.get('totalKeystrokes')
-                const keystrokeStartTime = AppState.get('keystrokeStartTime')
-
-                if (totalKeystrokes > 0 && keystrokeStartTime > 0) {
-                    const elapsedSeconds = (new Date().getTime() - keystrokeStartTime) / 1000
+                if (totalKeystrokes > 0) {
+                    const elapsedSeconds = (new Date().getTime() - AppState.get('startTime')) / 1000
                     if (elapsedSeconds > 0) {
                         const keystrokeSpeed = totalKeystrokes / elapsedSeconds
                         DOMRefs.get('keystrokeSpeedLabel').textContent = `击键：${keystrokeSpeed.toFixed(2)}次/秒`
                     }
                 }
-            }
 
-            // 更新键准显示
-            const updateAccuracyDisplay = () => {
-                const totalKeystrokes = AppState.get('totalKeystrokes')
+                // 更新键准（%）
                 const errorKeystrokes = AppState.get('errorKeystrokes')
-
                 if (totalKeystrokes > 0) {
                     const accuracy = ((totalKeystrokes - errorKeystrokes) / totalKeystrokes) * 100
                     DOMRefs.get('accuracyLabel').textContent = `键准：${accuracy.toFixed(1)}%`
                 }
             }
 
-            // 启动击键计时器
-            const startKeystrokeTimer = () => {
-                if (AppState.get('keystrokeTimer') === null) {
-                    AppState.set('keystrokeStartTime', new Date().getTime())
-                    const timer = setTimeout(() => {
-                        updateKeystrokeSpeedDisplay()
-                        AppState.set('keystrokeTimer', setTimeout(startKeystrokeTimer, 500))
-                    }, 500)
-                    AppState.set('keystrokeTimer', timer)
-                }
-            }
-
-            // 重置击键计时器
-            const resetKeystrokeTimer = () => {
-                const timer = AppState.get('keystrokeTimer')
-                if (timer !== null) {
-                    clearTimeout(timer)
-                    AppState.set('keystrokeTimer', null)
-                }
-            }
-
-            // 启动计时器
-            const startTimer = () => {
-                if (AppState.get('speedTimer') === null) {
+            // 启动指标计时器
+            const startMetricsTimer = () => {
+                if (AppState.get('metricsTimer') === null) {
                     AppState.set('startTime', new Date().getTime())
-                    updateSpeedDisplay()
+                    updateMetricsDisplay()
                 }
             }
 
-            // 重置计时器
-            const resetTimer = () => {
-                const timer = AppState.get('speedTimer')
+            // 重置指标计时器
+            const resetMetricsTimer = () => {
+                const timer = AppState.get('metricsTimer')
                 if (timer !== null) {
                     clearTimeout(timer)
-                    AppState.set('speedTimer', null)
+                    AppState.set('metricsTimer', null)
                 }
-                // 同时重置击键计时器
-                resetKeystrokeTimer()
             }
 
             // 更新占位符
@@ -563,10 +528,7 @@
                     }
 
                     if (val.toLowerCase() === key) {
-                        // 启动击键计时器
-                        startKeystrokeTimer()
-
-                        startTimer()
+                        startMetricsTimer()
                         AppState.set('curInputIndex', curInputIndex + 1)
                         AppState.set('wordCount', AppState.get('wordCount') + 1)
 
@@ -586,8 +548,7 @@
                     if (AppState.get('curInputIndex') >= AppState.get('curInputMax')) {
                         if (!loadNextBatch()) {
                             userInput.setAttribute("disabled", "true")
-                            resetTimer()
-                            resetKeystrokeTimer()
+                            resetMetricsTimer()
                         }
                     }
                 }, 50)
@@ -613,10 +574,6 @@
                     if (e.key === 'Backspace' || e.key === 'Delete') {
                         AppState.set('errorKeystrokes', AppState.get('errorKeystrokes') + 1)
                     }
-
-                    // 每次按键都更新击键速度和键准显示
-                    updateKeystrokeSpeedDisplay()
-                    updateAccuracyDisplay()
                 }
                 document.addEventListener('keydown', keydownHandler)
                 AppState.addCleanup(() => document.removeEventListener('keydown', keydownHandler))
@@ -740,7 +697,7 @@
 
             // 显示帮助
             const displayHelp = () => {
-                resetTimer()
+                resetMetricsTimer()
                 updateTabStyles(0)
                 const mainEl = document.querySelector("main")
                 mainEl.innerHTML = config.help || ''
@@ -784,8 +741,6 @@
                 // 初始化击键统计
                 AppState.set('totalKeystrokes', 0)
                 AppState.set('errorKeystrokes', 0)
-                AppState.set('keystrokeStartTime', 0)
-                AppState.set('keystrokeTimer', null)
 
                 const allWords = getWordsByRange(config.tabs[val].beg, config.tabs[val].end)
                 const modeIdx = SessionStore.get('radioMode', 0)
@@ -793,7 +748,7 @@
 
                 loadNextBatch()
                 progressLabel.textContent = `\t进度：0/${AppState.get('totalWords').length}字`
-                resetTimer()
+                resetMetricsTimer()
             }
 
             // 加载配置
