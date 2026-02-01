@@ -249,6 +249,29 @@
                 progress: wordCount
             })
 
+            // 通用指标更新函数
+            const updateDisplay = (elementIds) => {
+                const stats = getStats()
+                const display = formatDisplay(stats)
+
+                if (elementIds.speed) {
+                    const el = typeof elementIds.speed === 'string' ? (UIComponents?.get?.(elementIds.speed) || document.getElementById(elementIds.speed)) : elementIds.speed
+                    if (el) el.textContent = display.speed
+                }
+                if (elementIds.keystroke) {
+                    const el = typeof elementIds.keystroke === 'string' ? (UIComponents?.get?.(elementIds.keystroke) || document.getElementById(elementIds.keystroke)) : elementIds.keystroke
+                    if (el) el.textContent = display.keystroke
+                }
+                if (elementIds.accuracy) {
+                    const el = typeof elementIds.accuracy === 'string' ? (UIComponents?.get?.(elementIds.accuracy) || document.getElementById(elementIds.accuracy)) : elementIds.accuracy
+                    if (el) el.textContent = display.accuracy
+                }
+                if (elementIds.progress) {
+                    const el = typeof elementIds.progress === 'string' ? (UIComponents?.get?.(elementIds.progress) || document.getElementById(elementIds.progress)) : elementIds.progress
+                    if (el) el.textContent = `\t进度：${display.progress}字`
+                }
+            }
+
             return {
                 reset,
                 start,
@@ -256,7 +279,8 @@
                 addWordCount,
                 addKeystroke,
                 getStats,
-                formatDisplay
+                formatDisplay,
+                updateDisplay
             }
         })()
 
@@ -329,9 +353,64 @@
             // 获取 DOM 元素
             const get = (id) => currentRefs[id] || document.getElementById(id)
 
+            // 渲染公共统计栏
+            const renderStatsBar = (prefix = '') => `
+                <div class="stats-bar">
+                    ${prefix ? `
+                        <span id="${prefix}SpeedLabel"></span>
+                        <span id="${prefix}KeystrokeSpeedLabel">击键：0.00次/秒</span>
+                        <span id="${prefix}AccuracyLabel">键准：100%</span>
+                    ` : `
+                        <span id="progressLabel"></span>
+                        <span id="speedLabel"></span>
+                        <span id="keystrokeSpeedLabel">击键：0.00次/秒</span>
+                        <span id="accuracyLabel">键准：100%</span>
+                    `}
+                </div>`
+
+            // 渲染单选按钮组
+            const renderRadioGroup = (modeConfigs, sessionStore) => {
+                const savedIdx = sessionStore.get('radioMode', 0)
+                return '<div class="radio-group">' +
+                    modeConfigs.map((mode, i) => `
+                        <label>
+                            <input type="radio" name="radiobutton" data-mode="${i}" ${i === savedIdx ? 'checked' : ''}>
+                            ${mode.label}
+                        </label>
+                    `).join('') + '</div>'
+            }
+
+            // 渲染练习设置栏
+            const renderSettingsBar = (options = {}) => {
+                const { showHint = true, oneTimeCount = 30, totalCount = 120, radioHtml = '', selectHtml = '' } = options
+                const showHintChecked = SessionStore.get('showHint', showHint) ? 'checked' : ''
+                const oc = SessionStore.get('oneTimeCount', oneTimeCount)
+                const tc = SessionStore.get('totalCount', totalCount)
+
+                return `<div class="settings-bar">
+                    ${selectHtml || `
+                        <div class="setting-group">
+                            <label>单次字数</label>
+                            <input id="oneTimeCount" class="number-input" type="number" min="10" max="500" value="${oc}">
+                        </div>
+                        <div class="setting-group">
+                            <label>练习总数</label>
+                            <input id="totalCount" class="number-input" type="number" min="10" max="500" value="${tc}">
+                        </div>
+                        <div class="setting-group checkbox-group">
+                            <label class="checkbox-label">
+                                <input id="showHint" type="checkbox" ${showHintChecked}>
+                                <span>显示提示</span>
+                            </label>
+                        </div>
+                    `}
+                    ${radioHtml}
+                </div>`
+            }
+
             // 渲染启动界面
-            const renderLaunchScreen = () => {
-                return `<div class="launch-container">
+            const renderLaunchScreen = () => `
+                <div class="launch-container">
                     <div class="launch-icon">⌨️</div>
                     <h1 class="launch-title">输入法练习工具</h1>
                     <p class="launch-subtitle">选择配置文件开始练习</p>
@@ -340,11 +419,10 @@
                         <label for="configFile" class="file-label">选择文件</label>
                     </div>
                 </div>`
-            }
 
             // 渲染主界面结构
-            const renderMainLayout = (config, appVersion) => {
-                return `<header class="header">
+            const renderMainLayout = (config, appVersion) => `
+                <header class="header">
                     <h1 class="logo">${config.name || '输入法练习工具'}</h1>
                     <div class="version-info-bar">
                         <span class="version-item"><span class="version-label">应用</span><span class="version-value">${appVersion}</span></span>
@@ -356,7 +434,6 @@
                 </header>
                 <nav class="nav-tabs"></nav>
                 <main></main>`
-            }
 
             // 渲染分组导航
             const renderGroupNav = (groups, activeGroup) => {
@@ -365,64 +442,22 @@
                     const isActive = groupName === activeGroup ? 'active' : ''
                     html += `<button class="group-tab ${isActive}" data-group="${groupName}">${groupName}</button>`
                 })
-                // 添加固定在最右边的 free tab
                 html += `<button class="tab free-tab" id="tab-free">自由练习</button>`
                 html += '</div>'
                 return html
             }
 
             // 渲染 Tab 列表
-            const renderTabs = (tabs, activeIndex) => {
-                let html = '<div class="tab-container">'
-                tabs.forEach(tab => {
-                    const isActive = tab.index === activeIndex ? 'active' : ''
-                    html += `<button class="tab ${isActive}" id="tab${tab.index}">${tab.label}</button>`
-                })
-                html += '</div>'
-                return html
-            }
+            const renderTabs = (tabs, activeIndex) =>
+                '<div class="tab-container">' +
+                tabs.map(tab => `<button class="tab ${tab.index === activeIndex ? 'active' : ''}" id="tab${tab.index}">${tab.label}</button>`).join('') +
+                '</div>'
 
             // 渲染练习模板（字根练习）
-            const renderPracticeTemplate = (modeConfigs, sessionStore) => {
-                const savedIdx = sessionStore.get('radioMode', 0)
-                let radioHtml = '<div class="radio-group">'
-                modeConfigs.forEach((mode, i) => {
-                    const checked = i === savedIdx ? 'checked' : ''
-                    radioHtml += `<label>
-                        <input type="radio" name="radiobutton" data-mode="${i}" ${checked}>
-                        ${mode.label}
-                    </label>`
-                })
-                radioHtml += '</div>'
-
-                const showHintChecked = sessionStore.get('showHint', true) ? 'checked' : ''
-                const oneTimeCount = sessionStore.get('oneTimeCount', 30)
-                const totalCount = sessionStore.get('totalCount', 120)
-
+            const renderPracticeTemplate = (modeConfigs) => {
                 return `<div class="card practice-card">
-                    <div class="settings-bar">
-                        <div class="setting-group">
-                            <label>单次字数</label>
-                            <input id="oneTimeCount" class="number-input" type="number" min="10" max="500" value="${oneTimeCount}">
-                        </div>
-                        <div class="setting-group">
-                            <label>练习总数</label>
-                            <input id="totalCount" class="number-input" type="number" min="10" max="500" value="${totalCount}">
-                        </div>
-                        <div class="setting-group checkbox-group">
-                            <label class="checkbox-label">
-                                <input id="showHint" type="checkbox" ${showHintChecked}>
-                                <span>显示提示</span>
-                            </label>
-                        </div>
-                        ${radioHtml}
-                    </div>
-                    <div class="stats-bar">
-                        <span id="progressLabel"></span>
-                        <span id="speedLabel"></span>
-                        <span id="keystrokeSpeedLabel">击键：0.00次/秒</span>
-                        <span id="accuracyLabel">键准：100%</span>
-                    </div>
+                    ${renderSettingsBar({ radioHtml: renderRadioGroup(modeConfigs, SessionStore) })}
+                    ${renderStatsBar()}
                     <div class="content-area" id="content">
                         <div class="display-area" id="rawArea"></div>
                         <div class="input-area">
@@ -434,24 +469,14 @@
 
             // 渲染自由练习模板
             const renderFreeTemplate = (textItems = []) => {
-                let optionsHtml = textItems.map((item, idx) =>
+                const optionsHtml = textItems.map((item, idx) =>
                     `<option value="${idx}">${item.name}</option>`
                 ).join('')
+                const selectHtml = `<div class="setting-group"><label>选择文章</label><select id="freeTextSelect" class="text-select">${optionsHtml}</select></div>`
 
                 return `<div class="card practice-card">
-                    <div class="settings-bar">
-                        <div class="setting-group">
-                            <label>选择文章</label>
-                            <select id="freeTextSelect" class="text-select">
-                                ${optionsHtml}
-                            </select>
-                        </div>
-                    </div>
-                    <div class="stats-bar">
-                        <span id="freeSpeedLabel"></span>
-                        <span id="freeKeystrokeSpeedLabel">击键：0.00次/秒</span>
-                        <span id="freeAccuracyLabel">键准：100%</span>
-                    </div>
+                    ${renderSettingsBar({ selectHtml })}
+                    ${renderStatsBar('free')}
                     <div class="content-area" id="freeContent">
                         <div class="display-area free-display-area" id="freeArea"></div>
                         <div class="input-area free-input-area">
@@ -462,9 +487,7 @@
             }
 
             // 渲染帮助内容
-            const renderHelpContent = (helpContent) => {
-                return helpContent || ''
-            }
+            const renderHelpContent = (helpContent) => helpContent || ''
 
             return {
                 initRefs,
@@ -549,6 +572,32 @@
             }
 
             return { validate }
+        })()
+
+        // ============================================
+        // 键盘事件处理模块（共享）
+        // ============================================
+        const KeyboardHandler = (() => {
+            const createHandler = () => {
+                const handler = (e) => {
+                    // 只在输入框激活时统计
+                    const userInput = UIComponents.get('userInput') || UIComponents.get('freeUserInput')
+                    if (!userInput || document.activeElement !== userInput) return
+
+                    // Backspace 和 Del 视为错误按键
+                    const isError = e.key === 'Backspace' || e.key === 'Delete'
+                    MetricsTracker.addKeystroke(isError)
+                }
+                return handler
+            }
+
+            const bind = () => {
+                const handler = createHandler()
+                document.addEventListener('keydown', handler)
+                AppState.addCleanup(() => document.removeEventListener('keydown', handler))
+            }
+
+            return { bind }
         })()
 
         // ============================================
@@ -667,33 +716,24 @@
             }
 
             // 更新指标显示（使用 MetricsTracker）
-            const updateMetricsDisplay = (elementIds) => {
-                const stats = MetricsTracker.getStats()
-                const display = MetricsTracker.formatDisplay(stats)
-
-                if (elementIds.speed) {
-                    const el = UIComponents.get(elementIds.speed)
-                    if (el) el.textContent = display.speed
-                }
-                if (elementIds.keystroke) {
-                    const el = UIComponents.get(elementIds.keystroke)
-                    if (el) el.textContent = display.keystroke
-                }
-                if (elementIds.accuracy) {
-                    const el = UIComponents.get(elementIds.accuracy)
-                    if (el) el.textContent = display.accuracy
-                }
-                if (elementIds.progress) {
-                    const el = UIComponents.get(elementIds.progress)
-                    if (el) el.textContent = `\t进度：${display.progress}/${AppState.get('totalWords').length}字`
+            const updateMetricsDisplay = () => {
+                MetricsTracker.updateDisplay({
+                    speed: UIComponents.get('speedLabel'),
+                    keystroke: UIComponents.get('keystrokeSpeedLabel'),
+                    accuracy: UIComponents.get('accuracyLabel'),
+                    progress: UIComponents.get('progressLabel')
+                })
+                // 单独更新进度显示（需要 totalWords 长度）
+                const progressLabel = UIComponents.get('progressLabel')
+                if (progressLabel) {
+                    progressLabel.textContent = `\t进度：${MetricsTracker.getStats().wordCount}/${AppState.get('totalWords').length}字`
                 }
             }
 
             // 启动指标跟踪
-            const startMetricsTracking = (elementIds) => {
+            const startMetricsTracking = () => {
                 MetricsTracker.reset()
-                const updateFn = () => updateMetricsDisplay(elementIds)
-                MetricsTracker.start(updateFn)
+                MetricsTracker.start(updateMetricsDisplay)
             }
 
             // 停止指标跟踪
@@ -824,16 +864,8 @@
                     userInput.oninput = handleInput
                 }
 
-                // 监听键盘事件统计击键次数和错误次数
-                const keydownHandler = (e) => {
-                    if (!userInput || document.activeElement !== userInput) return
-
-                    // Backspace 和 Del 视为错误按键
-                    const isError = e.key === 'Backspace' || e.key === 'Delete'
-                    MetricsTracker.addKeystroke(isError)
-                }
-                document.addEventListener('keydown', keydownHandler)
-                AppState.addCleanup(() => document.removeEventListener('keydown', keydownHandler))
+                // 使用共享的键盘事件处理器
+                KeyboardHandler.bind()
 
                 const oneTimeCount = UIComponents.get("oneTimeCount")
                 const totalCount = UIComponents.get("totalCount")
@@ -879,11 +911,13 @@
                 if (userInput) userInput.value = ""
             }
 
-            // 显示模板
+                        // 显示模板
 
-                        const showTemplate = (templateId, helpIndex = 0, textItems = []) => {
+                        const showTemplate = (templateId, helpIndex = 0, textItems = [], modeConfigs = []) => {
 
                             const mainEl = document.querySelector("main")
+
+            
 
                             if (templateId === "help-template") {
 
@@ -893,13 +927,13 @@
 
                             }
 
-
+            
 
                             let content = ''
 
                             if (templateId === "practice-template") {
 
-                                content = UIComponents.renderPracticeTemplate(modeConfigs, SessionStore)
+                                content = UIComponents.renderPracticeTemplate(modeConfigs)
 
                             } else if (templateId === "free-template") {
 
@@ -907,11 +941,11 @@
 
                             }
 
-
+            
 
                             mainEl.innerHTML = content
 
-
+            
 
                             // 绑定事件
 
@@ -1109,7 +1143,7 @@ if (freeTab) {
                     const textItems = (config.text || []).map(item => ({ name: item.name, content: item.content }))
                     showTemplate("free-template", 0, textItems)
                 } else {
-                    showTemplate("practice-template")
+                    showTemplate("practice-template", 0, [], modeConfigs)
                 }
 
                 // 初始化 DOM 引用缓存
@@ -1165,13 +1199,7 @@ if (freeTab) {
                     }
 
                     // 启动指标跟踪
-                    const elementIds = {
-                        speed: 'speedLabel',
-                        keystroke: 'keystrokeSpeedLabel',
-                        accuracy: 'accuracyLabel',
-                        progress: 'progressLabel'
-                    }
-                    startMetricsTracking(elementIds)
+                    startMetricsTracking()
                 }
 
                 // 切换到当前 tab 所在的分组（free 模式不切换分组）
@@ -1274,20 +1302,7 @@ if (freeTab) {
         const FreeModule = (() => {
             let currentText = '' // 当前练习的文本
             let inputTimer = null // 防抖定时器
-
-            // 更新自由练习的指标显示
-            const updateFreeMetrics = () => {
-                const stats = MetricsTracker.getStats()
-                const display = MetricsTracker.formatDisplay(stats)
-
-                const speedLabel = document.getElementById('freeSpeedLabel')
-                const keystrokeSpeedLabel = document.getElementById('freeKeystrokeSpeedLabel')
-                const accuracyLabel = document.getElementById('freeAccuracyLabel')
-
-                if (speedLabel) speedLabel.textContent = display.speed
-                if (keystrokeSpeedLabel) keystrokeSpeedLabel.textContent = display.keystroke
-                if (accuracyLabel) accuracyLabel.textContent = display.accuracy
-            }
+            const elementIds = { speed: 'freeSpeedLabel', keystroke: 'freeKeystrokeSpeedLabel', accuracy: 'freeAccuracyLabel' }
 
             // 初始化自由练习
             const init = (text, textItems = []) => {
@@ -1326,12 +1341,9 @@ if (freeTab) {
                 userInput.removeAttribute('disabled')
 
                 // 重置指标显示
+                MetricsTracker.updateDisplay({ speed: 'freeSpeedLabel', keystroke: 'freeKeystrokeSpeedLabel', accuracy: 'freeAccuracyLabel' })
                 const speedLabel = document.getElementById('freeSpeedLabel')
-                const keystrokeSpeedLabel = document.getElementById('freeKeystrokeSpeedLabel')
-                const accuracyLabel = document.getElementById('freeAccuracyLabel')
                 if (speedLabel) speedLabel.textContent = ""
-                if (keystrokeSpeedLabel) keystrokeSpeedLabel.textContent = "击键：0.00次/秒"
-                if (accuracyLabel) accuracyLabel.textContent = "键准：100%"
 
                 // 绑定下拉框选择事件
                 if (textSelect && textItems.length > 0) {
@@ -1400,7 +1412,7 @@ if (freeTab) {
 
                     // 启动指标计时器
                     if (val.length > 0 && MetricsTracker.getStats().wordCount === 0) {
-                        MetricsTracker.start(updateFreeMetrics)
+                        MetricsTracker.start(() => MetricsTracker.updateDisplay(elementIds))
                     }
 
                     inputTimer = null
@@ -1429,16 +1441,8 @@ if (freeTab) {
                     }
                 }
 
-                // 监听键盘事件
-                const keydownHandler = (e) => {
-                    if (!userInput || document.activeElement !== userInput) return
-
-                    // Backspace 和 Del 视为错误按键
-                    const isError = e.key === 'Backspace' || e.key === 'Delete'
-                    MetricsTracker.addKeystroke(isError)
-                }
-                document.addEventListener('keydown', keydownHandler)
-                AppState.addCleanup(() => document.removeEventListener('keydown', keydownHandler))
+                // 使用共享的键盘事件处理器
+                KeyboardHandler.bind()
             }
 
             // 清理资源
