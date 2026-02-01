@@ -240,7 +240,7 @@
                 config_version: { type: 'string', default: '-' },
                 tabs: { type: 'array', required: true },
                 items: { type: 'array', required: true },
-                help: { type: 'string', default: '' },
+                help: { type: 'array', default: [] },
                 fonts: { type: 'array', default: [] },
                 key_bindings: { type: 'array', default: [] }
             }
@@ -264,7 +264,14 @@
                 if (config.tabs) {
                     config.tabs.forEach((tab, i) => {
                         if (!tab.label) errors.push(`tabs[${i}] 缺少 label`)
-                        if (tab.type !== 'help' && (!Array.isArray(tab.index) || tab.index.length === 0)) {
+                        if (tab.type === 'help') {
+                            // help 类型的 index 应为长度为 1 的数组
+                            if (!Array.isArray(tab.index) || tab.index.length !== 1) {
+                                errors.push(`tabs[${i}] help 类型的 index 应为长度为 1 的数组`)
+                            } else if (tab.index[0] < 0 || tab.index[0] >= (config.help ? config.help.length : 0)) {
+                                errors.push(`tabs[${i}] index 超出 help 数组范围`)
+                            }
+                        } else if (!Array.isArray(tab.index) || tab.index.length === 0) {
                             errors.push(`tabs[${i}] 缺少 index`)
                         }
                         if (typeof tab.group !== 'string') errors.push(`tabs[${i}] group 应为字符串`)
@@ -613,10 +620,11 @@
             }
 
             // 显示模板
-            const showTemplate = (templateId) => {
+            const showTemplate = (templateId, helpIndex = 0) => {
                 const mainEl = document.querySelector("main")
                 if (templateId === "help-template") {
-                    mainEl.innerHTML = config.help || ''
+                    const helpContent = (config.help && config.help[helpIndex]) ? config.help[helpIndex] : ''
+                    mainEl.innerHTML = helpContent
                     return
                 }
 
@@ -743,7 +751,7 @@
                     btn.textContent = tab.label
                     btn.onclick = () => {
                         if (tab.type === "help") {
-                            displayHelp()
+                            displayHelp(tab.index[0])
                         } else {
                             startPractice(tab.index)
                         }
@@ -755,7 +763,7 @@
                 if (updateActiveTab && tabs.length > 0) {
                     const firstTab = tabs[0]
                     if (firstTab.type === "help") {
-                        displayHelp()
+                        displayHelp(firstTab.index[0])
                     } else {
                         startPractice(firstTab.index)
                     }
@@ -763,11 +771,12 @@
             }
 
             // 显示帮助
-            const displayHelp = () => {
+            const displayHelp = (helpIndex = 0) => {
                 resetMetricsTimer()
-                updateTabStyles(0)
+                updateTabStyles(helpIndex)
                 const mainEl = document.querySelector("main")
-                mainEl.innerHTML = config.help || ''
+                const helpContent = (config.help && config.help[helpIndex]) ? config.help[helpIndex] : ''
+                mainEl.innerHTML = helpContent
 
                 // 重置击键统计显示
                 const keystrokeSpeedLabel = DOMRefs.get('keystrokeSpeedLabel')
@@ -776,7 +785,7 @@
                 if (accuracyLabel) accuracyLabel.textContent = "键准：100%"
 
                 // 切换到 help 所在的分组
-                const helpTab = config.tabs.find(t => t.type === 'help')
+                const helpTab = config.tabs.find(t => t.type === 'help' && t.index[0] === helpIndex)
                 if (helpTab) {
                     const groupName = helpTab.group || '默认'
                     const groupTab = document.querySelector(`.group-tab[data-group="${groupName}"]`)
@@ -889,7 +898,7 @@
                 // 初始化
                 initTabs()
                 initKeyBindings()
-                displayHelp()
+                displayHelp(0)
 
                 // 加载字体
                 try {

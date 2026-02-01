@@ -1,7 +1,7 @@
 name = '卿云字根简码练习'
 version = '无'
 config_version = "2026.2.1-2"
-help = '''
+help = ['''
 <div class="card">
     <div class="help-block">
         <h3>单字规则</h3>
@@ -24,7 +24,7 @@ help = '''
     </div>
     <div class="help-hint">💡 点击上方分类开始练习</div>
 </div>
-'''
+''']
 
 [[fonts]]
 name = 'Yuniversus'
@@ -96,7 +96,7 @@ append_suffix = ' '
 label = '快速入门'
 type = 'help'
 group = '入门'
-index = []
+index = [0]
 
 [[tabs]]
 label = 'ABCDE 键字根'

@@ -1,7 +1,7 @@
 name = '日月字根简码练习'
 version = '无'
 config_version = "2026.2.1-2"
-help = '''
+help = ['''
 <div class="card">
     <style>
         .chars-table {
@@ -78,7 +78,7 @@ help = '''
     </div>
     <div class="help-hint">💡 点击上方分类开始练习</div>
 </div>
-'''
+''']
 
 [[fonts]]
 name = 'Yuniversus'
@@ -166,7 +166,7 @@ append_suffix = ' '
 label = '快速入门'
 type = 'help'
 group = '入门'
-index = []
+index = [0]
 
 [[tabs]]
 label = 'BCDFG 键字根'

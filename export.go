@@ -25,7 +25,7 @@ type TemplateMeta struct {
 	KeyBindings   []KeyBinding        `toml:"key_bindings"`
 	ItemsMeta     []TemplateItemsMeta `toml:"items_meta"`
 	Tabs          []TemplateTab       `toml:"tabs"`
-	Help          string              `toml:"help"`
+	Help          []string            `toml:"help"`
 }
 
 // Template represents the structure for export (same as TemplateMeta but without ItemsMeta)
@@ -37,7 +37,7 @@ type Template struct {
 	KeyBindings   []KeyBinding          `toml:"key_bindings"`
 	Items         []map[string][]string `toml:"items"`
 	Tabs          []TemplateTab         `toml:"tabs"`
-	Help          string                `toml:"help"`
+	Help          []string              `toml:"help"`
 }
 
 // DictEntry represents a code-word pair [code, word]
