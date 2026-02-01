@@ -14,7 +14,7 @@
         // 字体加载模块
         // ============================================
         const FontLoader = (() => {
-            const FONT_LOAD_TIMEOUT = 5000 // 字体加载超时5秒
+            const FONT_LOAD_TIMEOUT = 5000
 
             // 检查系统字体是否存在
             const checkSystemFont = (fontName) => {
@@ -33,13 +33,10 @@
                 })
             }
 
-            // 从 base64 加载字体
-            const loadFontFromBase64 = (fontName, base64, type) => {
+            // 通用字体加载函数（带超时处理）
+            const loadFontWithSource = (fontName, fontSource, onError) => {
                 return new Promise((resolve) => {
-                    const fontUrl = `data:font/${type};base64,${base64}`
-                    const fontFace = new FontFace(fontName, `url(${fontUrl})`)
-
-                    // 添加超时处理
+                    const fontFace = new FontFace(fontName, fontSource)
                     const timeoutId = setTimeout(() => {
                         console.warn(`字体加载超时: ${fontName}`)
                         resolve(false)
@@ -51,30 +48,7 @@
                         resolve(true)
                     }).catch((err) => {
                         clearTimeout(timeoutId)
-                        console.error(`loadFontFromBase64 failed: ${fontName}`, err)
-                        resolve(false)
-                    })
-                })
-            }
-
-            // 从本地文件加载字体
-            const loadFontFromFile = (fontName, fileName) => {
-                return new Promise((resolve) => {
-                    const fontFace = new FontFace(fontName, `url(${fileName})`)
-
-                    // 添加超时处理
-                    const timeoutId = setTimeout(() => {
-                        console.warn(`字体加载超时: ${fontName}`)
-                        resolve(false)
-                    }, FONT_LOAD_TIMEOUT)
-
-                    fontFace.load().then((loadedFace) => {
-                        clearTimeout(timeoutId)
-                        document.fonts.add(loadedFace)
-                        resolve(true)
-                    }).catch((err) => {
-                        clearTimeout(timeoutId)
-                        console.warn(`字体加载失败（文件可能不存在）: ${fileName}`)
+                        onError?.(err) || console.warn(`字体加载失败: ${fontName}`)
                         resolve(false)
                     })
                 })
@@ -87,12 +61,13 @@
                 const isSystemFont = await checkSystemFont(font.name)
                 if (isSystemFont) return font.name
 
-                if (font.base64 && font.base64.length > 0 && font.type) {
-                    if (await loadFontFromBase64(font.name, font.base64, font.type)) return font.name
+                if (font.base64?.length > 0 && font.type) {
+                    const url = `data:font/${font.type};base64,${font.base64}`
+                    if (await loadFontWithSource(font.name, `url(${url})`)) return font.name
                 }
 
-                if (font.file && font.file.length > 0) {
-                    if (await loadFontFromFile(font.name, font.file)) return font.name
+                if (font.file?.length > 0) {
+                    if (await loadFontWithSource(font.name, `url(${font.file})`)) return font.name
                 }
 
                 return null
@@ -288,7 +263,7 @@
         // 应用状态管理
         // ============================================
         const AppState = (() => {
-            let state = {
+            const defaultState = () => ({
                 curInputMax: 0,
                 curInputIndex: 0,
                 curTab: 0,
@@ -297,32 +272,14 @@
                 inputTimer: null,
                 rawAreaFonts: null,
                 cleanupHandlers: []
-            }
+            })
+
+            let state = defaultState()
 
             const reset = () => {
-                // 清理所有定时器
-                if (state.metricsTimer) clearTimeout(state.metricsTimer)
                 if (state.inputTimer) clearTimeout(state.inputTimer)
-                // 执行所有清理函数
                 state.cleanupHandlers.forEach(fn => fn())
-                state.cleanupHandlers = []
-                // 重置状态
-                state = {
-                    metricsTimer: null,
-                    wordCount: 0,
-                    startTime: 0,
-                    curInputMax: 0,
-                    curInputIndex: 0,
-                    curTab: 0,
-                    totalWords: [],
-                    totalIndex: 0,
-                    inputTimer: null,
-                    rawAreaFonts: state.rawAreaFonts,
-                    cleanupHandlers: [],
-                    // 击键速度和键准相关状态
-                    totalKeystrokes: 0,
-                    errorKeystrokes: 0
-                }
+                state = { ...defaultState(), rawAreaFonts: state.rawAreaFonts }
             }
 
             const addCleanup = (fn) => {
@@ -649,7 +606,30 @@
                 }
             }
 
-            return { shuffleArray, generateRandomIndices, debounce }
+            // 根据索引列表获取单词
+            const getWordsByIndex = (items, indices) => {
+                const words = []
+                for (const i of indices) {
+                    const objs = items[i]
+                    for (const key in objs) {
+                        objs[key].forEach(code => words.push({ key, code }))
+                    }
+                }
+                return words
+            }
+
+            // 构建分组数据
+            const buildGroups = (tabs, defaultGroup = '默认') => {
+                const groups = {}
+                tabs.forEach((tab, i) => {
+                    const groupName = tab.group || defaultGroup
+                    if (!groups[groupName]) groups[groupName] = []
+                    groups[groupName].push({ ...tab, index: i })
+                })
+                return groups
+            }
+
+            return { shuffleArray, generateRandomIndices, debounce, getWordsByIndex, buildGroups }
         })()
 
         // ============================================
@@ -757,18 +737,6 @@
                 const curInputMax = AppState.get('curInputMax')
                 if (curInputIndex >= curInputMax) return null
                 return UIComponents.get(`word${curInputIndex}`)
-            }
-
-            // 根据索引列表获取单词
-            const getWordsByIndex = (indices) => {
-                const words = []
-                for (const i of indices) {
-                    const objs = config.items[i]
-                    for (const key in objs) {
-                        objs[key].forEach(code => words.push({ key, code }))
-                    }
-                }
-                return words
             }
 
             // 加载下一批
@@ -973,16 +941,8 @@
                 const nav = document.querySelector(".nav-tabs")
 
                 // 按 group 分组
-                const groups = {}
-                let firstGroup = null
-                config.tabs.forEach((tabConfig, i) => {
-                    const groupName = tabConfig.group || '默认'
-                    if (!groups[groupName]) {
-                        groups[groupName] = []
-                        if (!firstGroup) firstGroup = groupName
-                    }
-                    groups[groupName].push({ ...tabConfig, index: i })
-                })
+                const groups = Utils.buildGroups(config.tabs)
+                const firstGroup = Object.keys(groups)[0] || null
 
                 // 渲染分组导航（包含 free tab）
                 nav.innerHTML = UIComponents.renderGroupNav(groups, null)
@@ -1019,14 +979,7 @@
                 }
 
                 // 获取分组数据
-                const groups = {}
-                config.tabs.forEach((tabConfig, i) => {
-                    const g = tabConfig.group || '默认'
-                    if (!groups[g]) groups[g] = []
-                    groups[g].push({ ...tabConfig, index: i })
-                })
-
-                // 渲染该分组的 tabs
+                const groups = Utils.buildGroups(config.tabs)
                 const tabs = groups[groupName] || []
                 const tabContainer = document.querySelector(".tab-container")
                 tabContainer.innerHTML = UIComponents.renderTabs(tabs, null)
@@ -1072,6 +1025,15 @@
                         document.querySelectorAll(".group-tab").forEach(t => t.classList.remove("active"))
                         groupTab.classList.add("active")
                     }
+                }
+            }
+
+            // 辅助函数：更新分组高亮
+            const updateGroupHighlight = (groupName) => {
+                const groupTab = document.querySelector(`.group-tab[data-group="${groupName}"]`)
+                if (groupTab) {
+                    document.querySelectorAll(".group-tab").forEach(t => t.classList.remove("active"))
+                    groupTab.classList.add("active")
                 }
             }
 
@@ -1133,7 +1095,7 @@
                     FreeModule.bindEvents()
                 } else {
                     // 原来的字根练习逻辑
-                    const allWords = getWordsByIndex(config.tabs[val].index)
+                    const allWords = Utils.getWordsByIndex(config.items, config.tabs[val].index)
                     const modeIdx = SessionStore.get('radioMode', 0)
                     AppState.set('totalWords', modeConfigs[modeIdx].handler(allWords))
 
@@ -1151,12 +1113,7 @@
                 if (!isFreeType) {
                     const curTabConfig = config.tabs[val]
                     if (curTabConfig) {
-                        const groupName = curTabConfig.group || '默认'
-                        const groupTab = document.querySelector(`.group-tab[data-group="${groupName}"]`)
-                        if (groupTab) {
-                            document.querySelectorAll(".group-tab").forEach(t => t.classList.remove("active"))
-                            groupTab.classList.add("active")
-                        }
+                        updateGroupHighlight(curTabConfig.group || '默认')
                     }
                 }
             }
