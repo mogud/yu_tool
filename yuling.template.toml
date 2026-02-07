@@ -171,83 +171,83 @@ append_suffix = ' '
 [[tabs]]
 label = '快速入门'
 type = 'help'
-group = '入门'
+group = '教程'
 index = [0]
 
 [[tabs]]
 label = 'BCDFG 键字根'
 type = 'item'
-group = '键位练习'
+group = '字根练习'
 index = [0]
 
 [[tabs]]
 label = 'HJKLM 键字根'
 type = 'item'
-group = '键位练习'
+group = '字根练习'
 index = [1]
 
 [[tabs]]
 label = 'NPQRS 键字根'
 type = 'item'
-group = '键位练习'
+group = '字根练习'
 index = [2]
 
 [[tabs]]
 label = 'TVWXY 键字根'
 type = 'item'
-group = '键位练习'
+group = '字根练习'
 index = [3]
 
 [[tabs]]
 label = '所有字根'
 type = 'item'
-group = '键位练习'
+group = '字根练习'
 index = [0, 1, 2, 3]
 
 [[tabs]]
 label = '两键上屏字'
 type = 'item'
-group = '上屏练习'
+group = '自动上屏练习'
 index = [4]
 
 [[tabs]]
 label = '三键上屏字'
 type = 'item'
-group = '上屏练习'
+group = '自动上屏练习'
 index = [5]
 
 [[tabs]]
 label = '所有上屏字'
 type = 'item'
-group = '上屏练习'
+group = '自动上屏练习'
 index = [4, 5]
 
 [[tabs]]
 label = '所有上屏词'
 type = 'item'
-group = '上屏练习'
+group = '自动上屏练习'
 index = [6]
 
 [[tabs]]
 label = '所有上屏简'
 type = 'item'
-group = '上屏练习'
+group = '自动上屏练习'
 index = [4, 5, 6]
 
 [[tabs]]
 label = '所有空格字'
 type = 'item'
-group = '空格练习'
+group = '空格上屏练习'
 index = [7]
 
 [[tabs]]
 label = '所有空格词'
 type = 'item'
-group = '空格练习'
+group = '空格上屏练习'
 index = [8]
 
 [[tabs]]
 label = '所有空格简'
 type = 'item'
-group = '空格练习'
+group = '空格上屏练习'
 index = [7, 8]

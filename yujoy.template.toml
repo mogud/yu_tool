@@ -103,43 +103,43 @@ append_suffix = ' '
 [[tabs]]
 label = '快速入门'
 type = 'help'
-group = '入门'
+group = '教程'
 index = [0]
 
 [[tabs]]
 label = 'ABCDE 键字根'
 type = 'item'
-group = '键位练习'
+group = '字根练习'
 index = [0]
 
 [[tabs]]
 label = 'FGHIJ 键字根'
 type = 'item'
-group = '键位练习'
+group = '字根练习'
 index = [1]
 
 [[tabs]]
 label = 'KLMNO 键字根'
 type = 'item'
-group = '键位练习'
+group = '字根练习'
 index = [2]
 
 [[tabs]]
 label = 'PQRST 键字根'
 type = 'item'
-group = '键位练习'
+group = '字根练习'
 index = [3]
 
 [[tabs]]
 label = 'UVWXY 键字根'
 type = 'item'
-group = '键位练习'
+group = '字根练习'
 index = [4]
 
 [[tabs]]
 label = '全部字根'
 type = 'item'
-group = '键位练习'
+group = '字根练习'
 index = [0, 1, 2, 3, 4]
 
 [[tabs]]
