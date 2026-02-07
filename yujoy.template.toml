@@ -38,7 +38,7 @@ base64 = ''
 
 [[key_bindings]]
 key = 'alt+r'
-command = 'tab_reload'
+command = 'content_reload'
 
 [[items_meta]]
 category = ['roots']

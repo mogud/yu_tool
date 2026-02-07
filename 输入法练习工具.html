@@ -440,13 +440,14 @@
                     </div>
                     <div class="setting-group">
                         <label for="freeBatchCount">每组字数</label>
-                        <input id="freeBatchCount" class="number-input" type="number" min="10" max="1000" value="${freeBatchCount}">
+                        <input id="freeBatchCount" class="number-input" type="number" min="1" max="1000" value="${freeBatchCount}">
                     </div>
                     <label class="checkbox-label" for="freeRandom">
                         <input id="freeRandom" type="checkbox" ${randomChecked}>
                         <span>随机抽字</span>
                     </label>
-                    <button type="button" id="freeNextBtn" class="action-button">开始</button>
+                    <button type="button" id="freeRefreshBtn" class="action-button">刷新</button>
+                    <button type="button" id="freeNextBtn" class="action-button">下一组</button>
                 `
 
                 return `<section class="card practice-card">
@@ -454,7 +455,7 @@
                     ${renderStatsBar('free')}
                     <section class="content-area" id="freeContent">
                         <div class="display-area free-display-area" id="freeArea"></div>
-                        <textarea id="freeUserInput" class="free-input" placeholder="请先点击开始" rows="3" spellcheck="false" disabled></textarea>
+                        <textarea id="freeUserInput" class="free-input" placeholder="自由输入" rows="3" spellcheck="false" disabled></textarea>
                     </section>
                 </section>`
             }
@@ -690,6 +691,44 @@
                 compileKeyBindings()
                 if (compiledKeyBindings.length === 0) return
 
+                const triggerContentReload = () => {
+                    const curTab = AppState.get('curTab')
+                    if (curTab === 'free') {
+                        const refreshBtn = document.getElementById('freeRefreshBtn')
+                        if (refreshBtn) refreshBtn.click()
+                        return
+                    }
+                    if (curTab === undefined || curTab === null) return
+                    startPractice(curTab)
+                }
+
+                const triggerContentNext = () => {
+                    const curTab = AppState.get('curTab')
+                    if (curTab === 'free') {
+                        const nextBtn = document.getElementById('freeNextBtn')
+                        if (nextBtn) nextBtn.click()
+                        return
+                    }
+
+                    if (!loadNextBatch()) {
+                        const userInput = UIComponents.get('userInput')
+                        if (userInput) userInput.setAttribute('disabled', 'true')
+                        stopMetricsTracking()
+                    }
+                }
+
+                const executeBindingCommand = (command) => {
+                    if (command === 'content_reload') {
+                        triggerContentReload()
+                        return true
+                    }
+                    if (command === 'content_next') {
+                        triggerContentNext()
+                        return true
+                    }
+                    return false
+                }
+
                 const handler = (e) => {
                     for (const binding of compiledKeyBindings) {
                         const ctrlMatch = binding.modifiers.includes('ctrl') ? e.ctrlKey : !e.ctrlKey
@@ -700,9 +739,7 @@
 
                         if (ctrlMatch && altMatch && shiftMatch && metaMatch && keyMatch) {
                             e.preventDefault()
-                            if (binding.command === 'tab_reload') {
-                                startPractice(AppState.get('curTab'))
-                            }
+                            executeBindingCommand(binding.command)
                             break
                         }
                     }
@@ -1093,7 +1130,7 @@
                     'rawArea', 'userInput', 'freeUserInput',
                     'speedLabel', 'progressLabel', 'keystrokeSpeedLabel', 'accuracyLabel',
                     'freeProgressLabel', 'freeSpeedLabel', 'freeKeystrokeSpeedLabel', 'freeAccuracyLabel',
-                    'freeTextSelect', 'freeBatchCount', 'freeRandom', 'freeNextBtn',
+                    'freeTextSelect', 'freeBatchCount', 'freeRandom', 'freeNextBtn', 'freeRefreshBtn',
                     'oneTimeCount', 'totalCount', 'showHint'
                 ])
 
@@ -1246,6 +1283,7 @@
             let totalGroups = 0
             let countedCorrectFlags = []
             let isBatchLocked = false
+            let currentGroupCompleted = false
 
             const elementIds = {
                 progress: 'freeProgressLabel',
@@ -1267,7 +1305,7 @@
             const clampBatchCount = (val) => {
                 const num = parseInt(val, 10)
                 if (!Number.isFinite(num)) return 60
-                return Math.min(1000, Math.max(10, num))
+                return Math.min(1000, Math.max(1, num))
             }
 
             const getBatchCount = () => {
@@ -1304,6 +1342,7 @@
             }
 
             const getNextButton = () => document.getElementById('freeNextBtn')
+            const getRefreshButton = () => document.getElementById('freeRefreshBtn')
 
             const resetMetricsDisplay = () => {
                 const speedLabel = document.getElementById(elementIds.speed)
@@ -1333,7 +1372,7 @@
                 }
             }
 
-            const renderPlaceholder = (message = '请选择配置后点击开始') => {
+            const renderPlaceholder = (message = '请选择文章开始练习') => {
                 const freeArea = document.getElementById('freeArea')
                 if (!freeArea) return
                 freeArea.innerHTML = `<div class="free-placeholder">${message}</div>`
@@ -1354,6 +1393,42 @@
                 })
             }
 
+            const restartCurrentBatch = () => {
+                if (!currentBatch) {
+                    freeLog('restartCurrentBatch:skip-empty-batch')
+                    return
+                }
+
+                if (currentGroupCompleted && completedGroups > 0) {
+                    completedGroups--
+                    currentGroupCompleted = false
+                    updateProgress()
+                }
+
+                isBatchLocked = false
+                countedCorrectFlags = Array.from({ length: currentBatch.length }, () => false)
+
+                MetricsTracker.reset()
+                resetMetricsDisplay()
+
+                const userInput = document.getElementById('freeUserInput')
+                if (userInput) {
+                    userInput.value = ''
+                    userInput.placeholder = '自由输入'
+                    userInput.removeAttribute('disabled')
+                }
+
+                renderBatch(currentBatch)
+                setInputEnabled(true)
+
+                const nextBtn = getNextButton()
+                if (nextBtn) {
+                    nextBtn.textContent = '下一组'
+                }
+
+                freeLog('restartCurrentBatch', { batchLength: currentBatch.length, completedGroups, totalGroups })
+            }
+
             const rebuildCache = () => {
                 const { idx, item } = getSelectedText()
                 const content = item?.content || ''
@@ -1365,10 +1440,12 @@
 
                 cachedChars = randomMode ? Utils.shuffleArray(chars) : chars
                 freeLog('rebuildCache', { textIndex: idx, randomMode, textLength: chars.length, cachedLength: cachedChars.length })
+
                 cacheIndex = 0
                 currentBatch = ''
                 countedCorrectFlags = []
                 isBatchLocked = false
+                currentGroupCompleted = false
                 completedGroups = 0
 
                 setTotalGroupsByBatch()
@@ -1378,33 +1455,50 @@
                 const userInput = document.getElementById('freeUserInput')
                 if (userInput) {
                     userInput.value = ''
-                    userInput.placeholder = '请先点击开始'
+                    userInput.placeholder = '自由输入'
                 }
-                setInputEnabled(false)
-                renderPlaceholder(cachedChars.length > 0 ? '点击开始进入本组练习' : '当前文章为空，请选择其他文章')
 
-                const nextBtn = getNextButton()
-                if (nextBtn) {
-                    nextBtn.textContent = '开始'
-                    nextBtn.removeAttribute('disabled')
+                if (cachedChars.length === 0) {
+                    setInputEnabled(false)
+                    renderPlaceholder('当前文章为空，请选择其他文章')
+
+                    const nextBtn = getNextButton()
+                    if (nextBtn) {
+                        nextBtn.textContent = '下一组'
+                    }
+
+                    const refreshBtn = getRefreshButton()
+                    if (refreshBtn) {
+                        refreshBtn.setAttribute('disabled', 'true')
+                    }
+                    return
                 }
+
+                loadNextBatch()
             }
 
             const loadNextBatch = () => {
                 freeLog('loadNextBatch:begin', { cacheIndex, cachedLength: cachedChars.length })
+
                 if (cachedChars.length === 0) {
                     freeLog('loadNextBatch:empty-cache')
+                    setInputEnabled(false)
                     renderPlaceholder('当前文章为空，请选择其他文章')
                     return
                 }
 
                 if (cacheIndex >= cachedChars.length) {
-                    freeLog('loadNextBatch:rebuild-required')
-                    rebuildCache()
-                }
-
-                if (cacheIndex >= cachedChars.length) {
-                    freeLog('loadNextBatch:still-no-data-after-rebuild')
+                    if (completedGroups >= totalGroups && totalGroups > 0) {
+                        freeLog('loadNextBatch:rebuild-required')
+                        rebuildCache()
+                    } else {
+                        freeLog('loadNextBatch:end-reached-before-complete', {
+                            completedGroups,
+                            totalGroups,
+                            cacheIndex,
+                            cachedLength: cachedChars.length
+                        })
+                    }
                     return
                 }
 
@@ -1417,6 +1511,8 @@
                 cacheIndex = end
                 countedCorrectFlags = Array.from({ length: currentBatch.length }, () => false)
                 isBatchLocked = false
+                currentGroupCompleted = false
+
                 freeLog('loadNextBatch:ready', { start, end, batchLength: currentBatch.length, cacheIndex })
 
                 MetricsTracker.reset()
@@ -1434,13 +1530,18 @@
                 const nextBtn = getNextButton()
                 if (nextBtn) {
                     nextBtn.textContent = '下一组'
-                    nextBtn.setAttribute('disabled', 'true')
+                }
+
+                const refreshBtn = getRefreshButton()
+                if (refreshBtn) {
+                    refreshBtn.removeAttribute('disabled')
                 }
             }
 
             const finishCurrentBatch = () => {
                 if (isBatchLocked) return
                 isBatchLocked = true
+                currentGroupCompleted = true
 
                 MetricsTracker.stop()
                 updateMetricsDisplay()
@@ -1448,11 +1549,11 @@
                 completedGroups = Math.min(totalGroups, completedGroups + 1)
                 updateProgress()
                 setInputEnabled(false)
+
                 freeLog('finishCurrentBatch', { completedGroups, totalGroups, cacheIndex, cachedLength: cachedChars.length })
 
                 const nextBtn = getNextButton()
                 if (nextBtn) {
-                    nextBtn.removeAttribute('disabled')
                     nextBtn.textContent = cacheIndex >= cachedChars.length ? '重新开始' : '下一组'
                 }
 
@@ -1550,6 +1651,7 @@
                 const randomInput = document.getElementById('freeRandom')
                 const batchCountInput = document.getElementById('freeBatchCount')
                 const nextBtn = getNextButton()
+                const refreshBtn = getRefreshButton()
 
                 if (textSelect) {
                     textSelect.onchange = () => rebuildCache()
@@ -1564,12 +1666,16 @@
                         const count = clampBatchCount(e.target.value)
                         e.target.value = count
                         SessionStore.set('freeBatchCount', count)
-                        setTotalGroupsByBatch()
+                        rebuildCache()
                     }
                 }
 
                 if (nextBtn) {
                     nextBtn.onclick = () => loadNextBatch()
+                }
+
+                if (refreshBtn) {
+                    refreshBtn.onclick = () => restartCurrentBatch()
                 }
 
                 if (userInput) {
@@ -1627,6 +1733,7 @@
                 totalGroups = 0
                 countedCorrectFlags = []
                 isBatchLocked = false
+                currentGroupCompleted = false
             }
 
             return { init, bindEvents, cleanup, handleInput }
@@ -1878,6 +1985,12 @@
             .text-select option {
                 color: var(--text-main);
                 background: #fff;
+                padding: 6px 10px;
+            }
+            .text-select option:checked {
+                color: var(--primary-strong);
+                background: var(--primary-soft);
+                font-weight: 700;
             }
             .number-input { width: 82px; padding: 8px 10px; text-align: center; font-weight: 600; }
             .action-button {
