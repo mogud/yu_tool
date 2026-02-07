@@ -347,19 +347,17 @@
                 return `<div class="settings-bar">
                     ${selectHtml || `
                         <div class="setting-group">
-                            <label>单次字数</label>
+                            <label for="oneTimeCount">单次字数</label>
                             <input id="oneTimeCount" class="number-input" type="number" min="10" max="500" value="${oc}">
                         </div>
                         <div class="setting-group">
-                            <label>练习总数</label>
+                            <label for="totalCount">练习总数</label>
                             <input id="totalCount" class="number-input" type="number" min="10" max="500" value="${tc}">
                         </div>
-                        <div class="setting-group checkbox-group">
-                            <label class="checkbox-label">
-                                <input id="showHint" type="checkbox" ${showHintChecked}>
-                                <span>显示提示</span>
-                            </label>
-                        </div>
+                        <label class="checkbox-label" for="showHint">
+                            <input id="showHint" type="checkbox" ${showHintChecked}>
+                            <span>显示提示</span>
+                        </label>
                     `}
                     ${radioHtml}
                 </div>`
@@ -390,16 +388,16 @@
                     </div>
                 </header>
                 <nav class="nav-tabs"></nav>
-                <main></main>`
+                <main class="main-content"></main>`
 
             // 渲染分组导航
             const renderGroupNav = (groups, activeGroup) => {
                 let html = '<div class="group-nav">'
                 Object.keys(groups).forEach(groupName => {
                     const isActive = groupName === activeGroup ? 'active' : ''
-                    html += `<button class="group-tab ${isActive}" data-group="${groupName}">${groupName}</button>`
+                    html += `<button type="button" class="group-tab ${isActive}" data-group="${groupName}">${groupName}</button>`
                 })
-                html += `<button class="tab free-tab" id="tab-free">自由练习</button>`
+                html += `<button type="button" class="tab free-tab" id="tab-free">自由练习</button>`
                 html += '</div>'
                 return html
             }
@@ -407,21 +405,19 @@
             // 渲染 Tab 列表
             const renderTabs = (tabs, activeIndex) =>
                 '<div class="tab-container">' +
-                tabs.map(tab => `<button class="tab ${tab.index === activeIndex ? 'active' : ''}" id="tab${tab.index}">${tab.label}</button>`).join('') +
+                tabs.map(tab => `<button type="button" class="tab ${tab.index === activeIndex ? 'active' : ''}" id="tab${tab.index}">${tab.label}</button>`).join('') +
                 '</div>'
 
             // 渲染练习模板（字根练习）
             const renderPracticeTemplate = (modeConfigs) => {
-                return `<div class="card practice-card">
+                return `<section class="card practice-card">
                     ${renderSettingsBar({ radioHtml: renderRadioGroup(modeConfigs, SessionStore) })}
                     ${renderStatsBar()}
-                    <div class="content-area" id="content">
+                    <section class="content-area" id="content">
                         <div class="display-area" id="rawArea"></div>
-                        <div class="input-area">
-                            <input id="userInput">
-                        </div>
-                    </div>
-                </div>`
+                        <input id="userInput" autocomplete="off" spellcheck="false">
+                    </section>
+                </section>`
             }
 
             // 渲染自由练习模板
@@ -429,18 +425,16 @@
                 const optionsHtml = textItems.map((item, idx) =>
                     `<option value="${idx}">${item.name}</option>`
                 ).join('')
-                const selectHtml = `<div class="setting-group"><label>选择文章</label><select id="freeTextSelect" class="text-select">${optionsHtml}</select></div>`
+                const selectHtml = `<div class="setting-group"><label for="freeTextSelect">选择文章</label><select id="freeTextSelect" class="text-select">${optionsHtml}</select></div>`
 
-                return `<div class="card practice-card">
+                return `<section class="card practice-card">
                     ${renderSettingsBar({ selectHtml })}
                     ${renderStatsBar('free')}
-                    <div class="content-area" id="freeContent">
+                    <section class="content-area" id="freeContent">
                         <div class="display-area free-display-area" id="freeArea"></div>
-                        <div class="input-area free-input-area">
-                            <textarea id="freeUserInput" class="free-input" placeholder="自由输入" rows="3"></textarea>
-                        </div>
-                    </div>
-                </div>`
+                        <textarea id="freeUserInput" class="free-input" placeholder="自由输入" rows="3" spellcheck="false"></textarea>
+                    </section>
+                </section>`
             }
 
             // 渲染帮助内容
@@ -1375,105 +1369,260 @@
                 --text-secondary: #64748b;
                 --text-tertiary: #cbd5e1;
                 --border: #e2e8f0;
-                --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
+                --shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
                 --radius: 12px;
                 --radius-sm: 8px;
+                --focus-ring: 0 0 0 3px rgba(99, 102, 241, 0.16);
             }
-            html { font-size: 16px; line-height: 1.6; color: var(--text-primary); background: var(--bg); }
-            body { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 24px; }
-            .app-container { width: 100%; max-width: 900px; }
 
-            /* 启动界面 */
-            .launch-container { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 70vh; gap: 16px; text-align: center; }
-            .launch-icon { font-size: 5rem; margin-bottom: 8px; }
-            .launch-title { font-size: 2.5rem; font-weight: 700; color: var(--text-primary); margin: 0; }
-            .launch-subtitle { font-size: 1.1rem; color: var(--text-secondary); margin: 0 0 24px 0; }
+            *, *::before, *::after { box-sizing: border-box; }
+            html, body { margin: 0; padding: 0; }
+            html { font-size: 16px; line-height: 1.6; }
+            body { min-height: 100vh; padding: 24px; color: var(--text-primary); background: var(--bg); }
+            button, input, select, textarea { font: inherit; }
+
+            #font-container {
+                position: absolute;
+                width: 0;
+                height: 0;
+                overflow: hidden;
+                visibility: hidden;
+                font-family: '宋体', 'Yuniversus', 'WenJin Mincho Plane 0', 'WenJin Mincho Plane 2', 'WenJin Mincho Plane 3', 'TH-Times', 'TH-Tshyn-P0', 'TH-Tshyn-P1', 'TH-Tshyn-P2', 'TH-Tshyn-P16', 'SimSun-ExtB', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            }
+
+            .app-container { width: min(920px, 100%); margin: 0 auto; }
+            .main-content { display: grid; gap: 20px; }
+
+            .launch-container {
+                min-height: 70vh;
+                display: grid;
+                place-content: center;
+                gap: 14px;
+                text-align: center;
+            }
+            .launch-icon { font-size: 4.5rem; line-height: 1; }
+            .launch-title { margin: 0; font-size: clamp(2rem, 4vw, 2.5rem); font-weight: 700; }
+            .launch-subtitle { margin: 0 0 18px; color: var(--text-secondary); }
             .launch-select input[type="file"] { display: none; }
-            .file-label { display: inline-flex; align-items: center; gap: 8px; padding: 14px 32px; font-size: 1.1rem; font-weight: 500; color: white; background: var(--primary); border: none; border-radius: 12px; cursor: pointer; transition: 0.2s; }
-            .file-label:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4); }
+            .file-label {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 12px 28px;
+                border-radius: var(--radius);
+                background: var(--primary);
+                color: #fff;
+                font-weight: 600;
+                cursor: pointer;
+                transition: transform 0.2s ease, box-shadow 0.2s ease;
+            }
+            .file-label:hover { transform: translateY(-1px); box-shadow: 0 8px 16px rgba(99, 102, 241, 0.28); }
 
-            /* 头部 */
-            .header { text-align: center; margin-bottom: 24px; }
-            .logo { font-size: 2rem; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
-            .version-info-bar { display: inline-flex; align-items: center; gap: 0; padding: 8px 16px; background: var(--card-bg); border-radius: 20px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); }
-            .version-item { display: flex; align-items: center; gap: 6px; padding: 4px 8px; }
-            .version-label { color: var(--text-tertiary); font-size: 0.75rem; font-weight: 500; text-transform: uppercase; }
-            .version-value { color: var(--text-secondary); font-size: 0.875rem; font-weight: 600; }
+            .header { text-align: center; margin-bottom: 20px; }
+            .logo { margin: 0 0 10px; font-size: clamp(1.65rem, 3vw, 2rem); font-weight: 700; }
+            .version-info-bar {
+                display: inline-flex;
+                align-items: center;
+                padding: 8px 14px;
+                border-radius: 999px;
+                background: var(--card-bg);
+                box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+            }
+            .version-item { display: inline-flex; gap: 6px; align-items: center; padding: 0 6px; }
+            .version-label { color: var(--text-tertiary); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+            .version-value { color: var(--text-secondary); font-size: 0.86rem; font-weight: 600; }
             .version-divider { width: 1px; height: 16px; background: var(--border); }
 
-            /* 导航标签 */
-            .nav-tabs { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; padding: 12px; background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); }
-            .group-nav { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
-            .group-tab, .tab { padding: 6px 14px; border: none; background: transparent; color: var(--text-secondary); font-size: 0.85rem; font-weight: 500; cursor: pointer; border-radius: var(--radius-sm); transition: 0.2s; }
-            .group-tab:hover, .tab:hover { background: var(--primary-subtle); color: var(--primary); }
-            .group-tab.active, .tab.active { background: var(--primary); color: white; }
-            .tab-container { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; padding-top: 8px; }
-            .tab { padding: 10px 18px; }
-            .free-tab { margin-left: auto; border: 2px solid var(--primary); color: var(--primary); }
-            .free-tab.active { background: var(--primary); color: white; }
+            .nav-tabs {
+                margin-bottom: 20px;
+                padding: 10px;
+                display: grid;
+                gap: 8px;
+                border-radius: var(--radius);
+                background: var(--card-bg);
+                box-shadow: var(--shadow);
+            }
+            .group-nav {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 6px;
+                padding-bottom: 8px;
+                border-bottom: 1px solid var(--border);
+            }
+            .tab-container { display: flex; flex-wrap: wrap; gap: 6px; }
+            .group-tab, .tab {
+                border: none;
+                border-radius: var(--radius-sm);
+                padding: 7px 14px;
+                background: transparent;
+                color: var(--text-secondary);
+                font-size: 0.86rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: 0.18s ease;
+            }
+            .group-tab:hover, .tab:hover { color: var(--primary); background: var(--primary-subtle); }
+            .group-tab.active, .tab.active { color: #fff; background: var(--primary); }
+            .free-tab {
+                margin-left: auto;
+                border: 1px solid rgba(99, 102, 241, 0.35);
+                color: var(--primary);
+            }
 
-            /* 卡片 */
-            .card { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px; margin-bottom: 20px; }
-            .practice-card { display: flex; flex-direction: column; gap: 20px; }
+            .card {
+                padding: 20px;
+                border-radius: var(--radius);
+                background: var(--card-bg);
+                box-shadow: var(--shadow);
+            }
+            .practice-card { display: grid; gap: 16px; }
 
-            /* 设置栏 */
-            .settings-bar { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: center; margin-bottom: 20px; }
-            .setting-group { display: flex; align-items: center; gap: 8px; }
-            .setting-group label { font-size: 0.875rem; color: var(--text-secondary); font-weight: 500; }
-            .radio-group { display: flex; gap: 16px; }
-            .radio-group label, .checkbox-label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.875rem; color: var(--text-secondary); }
-            .checkbox-label { gap: 8px; font-weight: 500; }
-            .radio-group input[type="radio"], .checkbox-label input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
+            .settings-bar { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: center; }
+            .setting-group { display: inline-flex; align-items: center; gap: 8px; }
+            .setting-group label { font-size: 0.88rem; color: var(--text-secondary); font-weight: 600; }
+            .radio-group { display: flex; flex-wrap: wrap; gap: 14px; }
+            .radio-group label, .checkbox-label {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 0.88rem;
+                color: var(--text-secondary);
+                cursor: pointer;
+            }
+            .checkbox-label { font-weight: 600; }
+            .radio-group input[type="radio"], .checkbox-label input[type="checkbox"] {
+                width: 16px;
+                height: 16px;
+                margin: 0;
+                accent-color: var(--primary);
+                cursor: pointer;
+            }
 
-            /* 输入控件 */
-            .text-select, .number-input { padding: 8px 12px; border: 2px solid var(--border); border-radius: var(--radius-sm); font-size: 0.9rem; color: var(--text-primary); background: var(--card-bg); outline: none; transition: 0.2s; }
-            .number-input { text-align: center; width: 70px; font-weight: 500; }
-            .text-select:focus, .number-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); }
+            .text-select, .number-input {
+                border: 1px solid var(--border);
+                border-radius: var(--radius-sm);
+                background: var(--card-bg);
+                color: var(--text-primary);
+                transition: border-color 0.16s ease, box-shadow 0.16s ease;
+            }
+            .text-select { padding: 8px 10px; }
+            .number-input { width: 76px; padding: 8px 10px; text-align: center; font-weight: 600; }
+            .text-select:focus, .number-input:focus, #userInput:focus, .free-input:focus {
+                border-color: var(--primary);
+                box-shadow: var(--focus-ring);
+                outline: none;
+            }
 
-            /* 统计栏 */
-            .stats-bar { display: flex; gap: 24px; justify-content: center; padding: 14px 24px; background: var(--primary-subtle); border-radius: var(--radius-sm); font-weight: 600; color: var(--primary); font-size: 0.95rem; }
+            .stats-bar {
+                display: grid;
+                gap: 8px 12px;
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+                padding: 12px 16px;
+                border-radius: var(--radius-sm);
+                background: var(--primary-subtle);
+                color: var(--primary);
+                font-size: 0.93rem;
+                font-weight: 600;
+            }
+            .stats-bar span { text-align: center; }
 
-            /* 内容区域 */
-            .content-area { display: flex; flex-direction: column; }
-            .display-area { min-height: 280px; padding: 28px; background: var(--bg); border-radius: var(--radius); font-size: 2.25rem; font-weight: 600; line-height: 2; text-align: center; border: none; letter-spacing: 0.08em; word-break: keep-all; }
-            .display-area span { display: inline-block; margin: 4px 10px; padding: 6px 14px; border-radius: var(--radius-sm); transition: 0.2s; }
-            .free-display-area { min-height: 320px; font-size: 2rem; line-height: 1.6; text-align: left; word-break: break-word; overflow-wrap: anywhere; }
-            .free-display-area span { margin: 0; padding: 0; display: inline; color: var(--text-tertiary); border-radius: 4px; transition: 0.15s; }
-            .free-display-area span.error { color: var(--error); background: var(--error-subtle); }
+            .content-area { display: grid; gap: 16px; }
+            .display-area {
+                min-height: 260px;
+                padding: 24px;
+                border-radius: var(--radius);
+                background: var(--bg);
+                font-size: 2.2rem;
+                font-weight: 600;
+                line-height: 2;
+                text-align: center;
+                letter-spacing: 0.08em;
+                word-break: keep-all;
+            }
+            .display-area span {
+                display: inline-block;
+                margin: 4px 10px;
+                padding: 6px 12px;
+                border-radius: var(--radius-sm);
+                transition: 0.2s;
+            }
+            .free-display-area {
+                min-height: 300px;
+                font-size: 2rem;
+                line-height: 1.65;
+                text-align: left;
+                word-break: break-word;
+                overflow-wrap: anywhere;
+            }
+            .free-display-area span { margin: 0; padding: 0; display: inline; color: var(--text-tertiary); }
+            .free-display-area span.error { color: var(--error); background: var(--error-subtle); border-radius: 4px; }
 
-            /* 输入区域 */
-            .input-area, .free-input-area { margin-top: 24px; display: flex; justify-content: center; }
-            #userInput { width: 100%; max-width: 320px; padding: 16px 24px; font-size: 1.25rem; font-weight: 600; text-align: center; border: 2px solid var(--border); border-radius: var(--radius); outline: none; transition: 0.2s; letter-spacing: 0.15em; color: var(--text-primary); caret-color: transparent; }
-            #userInput:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12); }
-            #userInput:disabled { opacity: 0.5; cursor: not-allowed; }
-            .free-input { width: 100%; min-height: 200px; font-size: 1.5rem; padding: 10px 16px; line-height: 1.8; border: 2px solid var(--border); border-radius: var(--radius); resize: vertical; outline: none; font-family: inherit; background: var(--bg); color: var(--text-primary); transition: 0.2s; }
-            .free-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); }
+            #userInput {
+                width: min(320px, 100%);
+                margin: 8px auto 0;
+                padding: 14px 18px;
+                border: 1px solid var(--border);
+                border-radius: var(--radius);
+                background: var(--card-bg);
+                color: var(--text-primary);
+                text-align: center;
+                font-size: 1.22rem;
+                font-weight: 600;
+                letter-spacing: 0.15em;
+                caret-color: transparent;
+                transition: border-color 0.16s ease, box-shadow 0.16s ease;
+            }
+            #userInput:disabled { opacity: 0.55; cursor: not-allowed; }
+
+            .free-input {
+                width: 100%;
+                min-height: 180px;
+                padding: 10px 14px;
+                border: 1px solid var(--border);
+                border-radius: var(--radius);
+                background: var(--bg);
+                color: var(--text-primary);
+                line-height: 1.7;
+                font-size: 1.4rem;
+                resize: vertical;
+                transition: border-color 0.16s ease, box-shadow 0.16s ease;
+            }
             .free-input::placeholder { color: var(--text-tertiary); }
-            #freeUserInput { padding: 0; line-height: 1.6; border: none; background: transparent; }
+            #freeUserInput { padding: 0; border: none; background: transparent; border-radius: 0; }
+            #freeUserInput:focus { box-shadow: none; }
 
-            /* 帮助页面 */
-            .help-block { padding: 16px 20px; margin-bottom: 16px; background: var(--bg); border-radius: var(--radius-sm); }
-            .help-block h3 { font-size: 1rem; color: var(--text-primary); margin-bottom: 8px; }
-            .help-block p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 12px; }
-            .help-items { display: flex; flex-direction: column; gap: 8px; }
-            .help-items code { display: inline-block; background: var(--primary-subtle); color: var(--primary); padding: 4px 10px; border-radius: 6px; font-weight: 600; }
-
-            #font-container { font-family: '宋体', 'Yuniversus', 'WenJin Mincho Plane 0', 'WenJin Mincho Plane 2', 'WenJin Mincho Plane 3', 'TH-Times', 'TH-Tshyn-P0', 'TH-Tshyn-P1', 'TH-Tshyn-P2', 'TH-Tshyn-P16', 'SimSun-ExtB', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+            .help-block { margin-bottom: 12px; padding: 14px 16px; border-radius: var(--radius-sm); background: var(--bg); }
+            .help-block h3 { margin: 0 0 8px; font-size: 1rem; }
+            .help-block p { margin: 0 0 10px; color: var(--text-secondary); font-size: 0.9rem; }
+            .help-items { display: grid; gap: 8px; }
+            .help-items code {
+                display: inline-flex;
+                align-self: flex-start;
+                padding: 4px 9px;
+                border-radius: 6px;
+                background: var(--primary-subtle);
+                color: var(--primary);
+                font-weight: 700;
+            }
 
             @media (max-width: 640px) {
-                body { padding: 16px; }
-                .nav-tabs { gap: 6px; padding: 4px; }
-                .tab { padding: 8px 14px; font-size: 0.85rem; }
-                .card { padding: 20px; }
-                .settings-bar { flex-direction: column; gap: 16px; }
-                .display-area { font-size: 1.75rem; padding: 20px; }
-                .stats-bar { flex-direction: column; gap: 12px; text-align: center; }
+                body { padding: 14px; }
+                .nav-tabs { padding: 8px; }
+                .card { padding: 16px; }
+                .settings-bar { flex-direction: column; align-items: flex-start; }
+                .radio-group { width: 100%; }
+                .free-tab { margin-left: 0; }
+                .display-area { padding: 18px; font-size: 1.65rem; }
+                .free-display-area { font-size: 1.65rem; }
+                .stats-bar { grid-template-columns: 1fr; }
             }
         </style>
+
 </head>
 
 <body>
-    <div id="font-container"></div>
+    <div id="font-container" aria-hidden="true"></div>
     <div class="app-container"></div>
 </body>
 
