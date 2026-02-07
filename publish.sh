@@ -15,9 +15,12 @@ for arg in "$@"; do
     fi
 done
 
-# 创建 publish 目录并清空
 mkdir -p ./publish
 rm -rf ./publish/*
+
+mkdir -p ./export
+rm -rf ./export/*
+
 mkdir -p ./inputs
 
 # 获取 CSV 文件
