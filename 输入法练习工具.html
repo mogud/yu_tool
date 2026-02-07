@@ -314,8 +314,7 @@
             const renderStatsBar = (prefix = '') => `
                 <div class="stats-bar">
                     ${prefix ? `
-                        <span id="${prefix}StatusLabel">状态：待开始</span>
-                        <span id="${prefix}SpeedStateLabel">速度状态：待开始</span>
+                        <span id="${prefix}ProgressLabel">进度：0/0组</span>
                         <span id="${prefix}SpeedLabel">速度：0.00字/分</span>
                         <span id="${prefix}KeystrokeSpeedLabel">击键：0.00次/秒</span>
                         <span id="${prefix}AccuracyLabel">键准：100%</span>
@@ -1093,7 +1092,7 @@
                 UIComponents.initRefs([
                     'rawArea', 'userInput', 'freeUserInput',
                     'speedLabel', 'progressLabel', 'keystrokeSpeedLabel', 'accuracyLabel',
-                    'freeStatusLabel', 'freeSpeedStateLabel', 'freeSpeedLabel', 'freeKeystrokeSpeedLabel', 'freeAccuracyLabel',
+                    'freeProgressLabel', 'freeSpeedLabel', 'freeKeystrokeSpeedLabel', 'freeAccuracyLabel',
                     'freeTextSelect', 'freeBatchCount', 'freeRandom', 'freeNextBtn',
                     'oneTimeCount', 'totalCount', 'showHint'
                 ])
@@ -1242,22 +1241,55 @@
             let cachedChars = []
             let cacheIndex = 0
             let currentBatch = ''
-            let maxMatchedCount = 0
-            let inputTimer = null
             let isComposing = false
+            let completedGroups = 0
+            let totalGroups = 0
+            let countedCorrectFlags = []
+            let isBatchLocked = false
 
             const elementIds = {
-                status: 'freeStatusLabel',
-                speedState: 'freeSpeedStateLabel',
+                progress: 'freeProgressLabel',
                 speed: 'freeSpeedLabel',
                 keystroke: 'freeKeystrokeSpeedLabel',
                 accuracy: 'freeAccuracyLabel'
             }
 
+            const freeDebugEnabled = SessionStore.get('freeDebug', true)
+            const freeLog = (...args) => {
+                if (freeDebugEnabled) {
+                    console.log('[FreeDebug]', ...args)
+                }
+            }
+
+            // 某些输入法不会稳定触发 compositionstart/end，这里用末尾拼音串做兜底判定
+            const hasTrailingPhonetic = (val) => /[A-Za-z']+$/.test(val)
+
             const clampBatchCount = (val) => {
                 const num = parseInt(val, 10)
                 if (!Number.isFinite(num)) return 60
                 return Math.min(1000, Math.max(10, num))
+            }
+
+            const getBatchCount = () => {
+                const batchInput = document.getElementById('freeBatchCount')
+                const count = clampBatchCount(batchInput ? batchInput.value : 60)
+                if (batchInput) batchInput.value = count
+                SessionStore.set('freeBatchCount', count)
+                return count
+            }
+
+            const updateProgress = () => {
+                const progressLabel = document.getElementById(elementIds.progress)
+                if (progressLabel) {
+                    progressLabel.textContent = `进度：${completedGroups}/${totalGroups}组`
+                }
+            }
+
+            const setTotalGroupsByBatch = () => {
+                const batchCount = getBatchCount()
+                totalGroups = cachedChars.length > 0 ? Math.ceil(cachedChars.length / batchCount) : 0
+                if (completedGroups > totalGroups) completedGroups = totalGroups
+                updateProgress()
             }
 
             const getSelectedText = () => {
@@ -1273,27 +1305,6 @@
 
             const getNextButton = () => document.getElementById('freeNextBtn')
 
-            const getSpeedLevel = (speed) => {
-                if (speed <= 0) return '待开始'
-                if (speed < 30) return '起步'
-                if (speed < 60) return '稳定'
-                if (speed < 90) return '流畅'
-                return '飞快'
-            }
-
-            const updateSpeedState = (isCompleted = false) => {
-                const speedStateLabel = document.getElementById(elementIds.speedState)
-                if (!speedStateLabel) return
-                const speed = MetricsTracker.getStats().typingSpeed
-                const level = getSpeedLevel(speed)
-                speedStateLabel.textContent = isCompleted ? `速度状态：${level}（完成）` : `速度状态：${level}`
-            }
-
-            const updateStatus = (text) => {
-                const statusLabel = document.getElementById(elementIds.status)
-                if (statusLabel) statusLabel.textContent = text
-            }
-
             const resetMetricsDisplay = () => {
                 const speedLabel = document.getElementById(elementIds.speed)
                 const keystrokeLabel = document.getElementById(elementIds.keystroke)
@@ -1301,7 +1312,6 @@
                 if (speedLabel) speedLabel.textContent = '速度：0.00字/分'
                 if (keystrokeLabel) keystrokeLabel.textContent = '击键：0.00次/秒'
                 if (accuracyLabel) accuracyLabel.textContent = '键准：100%'
-                updateSpeedState(false)
             }
 
             const updateMetricsDisplay = () => {
@@ -1310,7 +1320,6 @@
                     keystroke: elementIds.keystroke,
                     accuracy: elementIds.accuracy
                 })
-                updateSpeedState(false)
             }
 
             const setInputEnabled = (enabled) => {
@@ -1349,18 +1358,22 @@
                 const { idx, item } = getSelectedText()
                 const content = item?.content || ''
                 const chars = Array.from(content)
+                const randomMode = isRandomMode()
 
                 SessionStore.set('freeTextIndex', idx)
-                SessionStore.set('freeRandom', isRandomMode())
+                SessionStore.set('freeRandom', randomMode)
 
-                cachedChars = isRandomMode() ? Utils.shuffleArray(chars) : chars
+                cachedChars = randomMode ? Utils.shuffleArray(chars) : chars
+                freeLog('rebuildCache', { textIndex: idx, randomMode, textLength: chars.length, cachedLength: cachedChars.length })
                 cacheIndex = 0
                 currentBatch = ''
-                maxMatchedCount = 0
+                countedCorrectFlags = []
+                isBatchLocked = false
+                completedGroups = 0
 
+                setTotalGroupsByBatch()
                 MetricsTracker.reset()
                 resetMetricsDisplay()
-                updateStatus(`状态：已就绪（共${cachedChars.length}字）`)
 
                 const userInput = document.getElementById('freeUserInput')
                 if (userInput) {
@@ -1378,34 +1391,36 @@
             }
 
             const loadNextBatch = () => {
+                freeLog('loadNextBatch:begin', { cacheIndex, cachedLength: cachedChars.length })
                 if (cachedChars.length === 0) {
+                    freeLog('loadNextBatch:empty-cache')
                     renderPlaceholder('当前文章为空，请选择其他文章')
                     return
                 }
 
                 if (cacheIndex >= cachedChars.length) {
-                    // 重新开始时重新生成缓存，随机模式会得到新的乱序
+                    freeLog('loadNextBatch:rebuild-required')
                     rebuildCache()
                 }
 
-                if (cacheIndex >= cachedChars.length) return
-
-                const countInput = document.getElementById('freeBatchCount')
-                const batchCount = clampBatchCount(countInput ? countInput.value : 60)
-                if (countInput) {
-                    countInput.value = batchCount
-                    SessionStore.set('freeBatchCount', batchCount)
+                if (cacheIndex >= cachedChars.length) {
+                    freeLog('loadNextBatch:still-no-data-after-rebuild')
+                    return
                 }
+
+                const batchCount = getBatchCount()
+                setTotalGroupsByBatch()
 
                 const start = cacheIndex
                 const end = Math.min(start + batchCount, cachedChars.length)
                 currentBatch = cachedChars.slice(start, end).join('')
                 cacheIndex = end
-                maxMatchedCount = 0
+                countedCorrectFlags = Array.from({ length: currentBatch.length }, () => false)
+                isBatchLocked = false
+                freeLog('loadNextBatch:ready', { start, end, batchLength: currentBatch.length, cacheIndex })
 
                 MetricsTracker.reset()
                 resetMetricsDisplay()
-                updateStatus(`状态：练习中（${start + 1}-${end}/${cachedChars.length}）`)
 
                 const userInput = document.getElementById('freeUserInput')
                 if (userInput) {
@@ -1424,12 +1439,16 @@
             }
 
             const finishCurrentBatch = () => {
+                if (isBatchLocked) return
+                isBatchLocked = true
+
                 MetricsTracker.stop()
                 updateMetricsDisplay()
-                updateSpeedState(true)
 
-                updateStatus('状态：本组完成')
+                completedGroups = Math.min(totalGroups, completedGroups + 1)
+                updateProgress()
                 setInputEnabled(false)
+                freeLog('finishCurrentBatch', { completedGroups, totalGroups, cacheIndex, cachedLength: cachedChars.length })
 
                 const nextBtn = getNextButton()
                 if (nextBtn) {
@@ -1443,33 +1462,24 @@
                 }
             }
 
-            const refreshDisplayByInput = (val) => {
-                if (!currentBatch) return
+            const handleCommittedInput = () => {
+                const userInput = document.getElementById('freeUserInput')
+                if (!userInput || !currentBatch || isBatchLocked) {
+                    freeLog('handleCommittedInput:skip', {
+                        hasInput: !!userInput,
+                        batchLength: currentBatch ? currentBatch.length : 0,
+                        isBatchLocked
+                    })
+                    return
+                }
 
+                if (userInput.value.length > currentBatch.length) {
+                    userInput.value = userInput.value.slice(0, currentBatch.length)
+                }
+
+                const val = userInput.value
                 const inputLen = Math.min(val.length, currentBatch.length)
-                let firstMismatchIndex = -1
-
-                for (let i = 0; i < inputLen; i++) {
-                    if (val[i] !== currentBatch[i]) {
-                        firstMismatchIndex = i
-                        break
-                    }
-                }
-
-                if (firstMismatchIndex === -1 && val.length > currentBatch.length) {
-                    firstMismatchIndex = currentBatch.length
-                }
-
-                const matchedCount = firstMismatchIndex === -1 ? inputLen : firstMismatchIndex
-
-                if (matchedCount > maxMatchedCount) {
-                    MetricsTracker.addWordCount(matchedCount - maxMatchedCount)
-                    maxMatchedCount = matchedCount
-                }
-
-                if (val.length > 0) {
-                    MetricsTracker.start(updateMetricsDisplay)
-                }
+                let correctCount = 0
 
                 for (let i = 0; i < currentBatch.length; i++) {
                     const span = document.getElementById(`free-char-${i}`)
@@ -1478,18 +1488,37 @@
                     span.style.background = 'transparent'
                     span.classList.remove('error')
 
-                    if (i < matchedCount) {
-                        span.style.color = 'var(--text-primary)'
-                    } else if (i < val.length) {
-                        span.style.color = 'var(--error)'
-                        span.style.background = 'var(--error-subtle)'
-                        span.classList.add('error')
+                    if (i < inputLen) {
+                        const isCorrect = val[i] === currentBatch[i]
+                        if (isCorrect) {
+                            correctCount++
+                            span.style.color = 'var(--text-primary)'
+                            if (!countedCorrectFlags[i]) {
+                                countedCorrectFlags[i] = true
+                                MetricsTracker.addWordCount(1)
+                            }
+                        } else {
+                            span.style.color = 'var(--error)'
+                            span.style.background = 'var(--error-subtle)'
+                            span.classList.add('error')
+                        }
                     } else {
                         span.style.color = 'var(--text-tertiary)'
                     }
                 }
 
-                if (firstMismatchIndex === -1 && val.length === currentBatch.length) {
+                freeLog('handleCommittedInput:compare', {
+                    valLength: val.length,
+                    batchLength: currentBatch.length,
+                    correctCount
+                })
+
+                if (val.length > 0) {
+                    MetricsTracker.start(updateMetricsDisplay)
+                }
+
+                if (inputLen === currentBatch.length) {
+                    freeLog('handleCommittedInput:batch-finished')
                     finishCurrentBatch()
                 }
             }
@@ -1509,20 +1538,9 @@
                 rebuildCache()
             }
 
-            // 处理用户输入
+            // 处理用户输入（仅供 compositionend 调用）
             const handleInput = () => {
-                const userInput = document.getElementById('freeUserInput')
-                if (!userInput || !currentBatch) return
-
-                if (inputTimer) {
-                    clearTimeout(inputTimer)
-                }
-
-                const val = userInput.value
-                inputTimer = setTimeout(() => {
-                    refreshDisplayByInput(val)
-                    inputTimer = null
-                }, 30)
+                handleCommittedInput()
             }
 
             // 绑定事件
@@ -1546,6 +1564,7 @@
                         const count = clampBatchCount(e.target.value)
                         e.target.value = count
                         SessionStore.set('freeBatchCount', count)
+                        setTotalGroupsByBatch()
                     }
                 }
 
@@ -1556,32 +1575,58 @@
                 if (userInput) {
                     userInput.oncompositionstart = () => {
                         isComposing = true
+                        freeLog('event:compositionstart', { value: userInput.value })
                     }
                     userInput.oncompositionend = () => {
                         isComposing = false
-                        handleInput()
+                        freeLog('event:compositionend', { value: userInput.value })
+                        handleCommittedInput()
                     }
-                    userInput.oninput = () => {
-                        if (isComposing) return
-                        handleInput()
+                    userInput.oninput = (e) => {
+                        const inputType = e?.inputType || ''
+                        const eventComposing = !!e?.isComposing
+                        const value = userInput.value
+
+                        freeLog('event:input', {
+                            inputType,
+                            eventComposing,
+                            stateComposing: isComposing,
+                            value
+                        })
+
+                        // IME 中间态：值末尾仍是拼音串时不判定；候选上屏后再判定
+                        if (inputType === 'insertCompositionText' || inputType === 'deleteCompositionText') {
+                            if (hasTrailingPhonetic(value)) {
+                                freeLog('event:input:ignored-composing-tail', { inputType, value })
+                                return
+                            }
+                            freeLog('event:input:commit-detected', { inputType, value })
+                            handleCommittedInput()
+                            return
+                        }
+
+                        if (isComposing || eventComposing) {
+                            freeLog('event:input:ignored-composing-flag', { inputType })
+                            return
+                        }
+
+                        handleCommittedInput()
                     }
                 }
             }
 
             // 清理资源
             const cleanup = () => {
-                if (inputTimer) {
-                    clearTimeout(inputTimer)
-                    inputTimer = null
-                }
-
                 MetricsTracker.stop()
                 textItems = []
                 cachedChars = []
                 cacheIndex = 0
                 currentBatch = ''
-                maxMatchedCount = 0
                 isComposing = false
+                completedGroups = 0
+                totalGroups = 0
+                countedCorrectFlags = []
+                isBatchLocked = false
             }
 
             return { init, bindEvents, cleanup, handleInput }
@@ -1812,7 +1857,28 @@
                 color: var(--text-main);
                 transition: border-color 0.16s ease, box-shadow 0.16s ease;
             }
-            .text-select { padding: 8px 12px; }
+            .text-select {
+                padding: 8px 34px 8px 12px;
+                appearance: none;
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                background-image:
+                    linear-gradient(45deg, transparent 50%, var(--text-sub) 50%),
+                    linear-gradient(135deg, var(--text-sub) 50%, transparent 50%);
+                background-position:
+                    calc(100% - 17px) calc(50% - 2px),
+                    calc(100% - 12px) calc(50% - 2px);
+                background-size: 5px 5px, 5px 5px;
+                background-repeat: no-repeat;
+            }
+            .text-select:hover {
+                border-color: rgba(79, 70, 229, 0.4);
+                box-shadow: 0 4px 10px rgba(79, 70, 229, 0.08);
+            }
+            .text-select option {
+                color: var(--text-main);
+                background: #fff;
+            }
             .number-input { width: 82px; padding: 8px 10px; text-align: center; font-weight: 600; }
             .action-button {
                 border: none;
