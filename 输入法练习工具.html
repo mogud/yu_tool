@@ -314,7 +314,9 @@
             const renderStatsBar = (prefix = '') => `
                 <div class="stats-bar">
                     ${prefix ? `
-                        <span id="${prefix}SpeedLabel"></span>
+                        <span id="${prefix}StatusLabel">状态：待开始</span>
+                        <span id="${prefix}SpeedStateLabel">速度状态：待开始</span>
+                        <span id="${prefix}SpeedLabel">速度：0.00字/分</span>
                         <span id="${prefix}KeystrokeSpeedLabel">击键：0.00次/秒</span>
                         <span id="${prefix}AccuracyLabel">键准：100%</span>
                     ` : `
@@ -422,17 +424,38 @@
 
             // 渲染自由练习模板
             const renderFreeTemplate = (textItems = []) => {
+                const savedTextIdx = Math.min(
+                    Math.max(0, SessionStore.get('freeTextIndex', 0)),
+                    Math.max(0, textItems.length - 1)
+                )
                 const optionsHtml = textItems.map((item, idx) =>
-                    `<option value="${idx}">${item.name}</option>`
+                    `<option value="${idx}" ${idx === savedTextIdx ? 'selected' : ''}>${item.name}</option>`
                 ).join('')
-                const selectHtml = `<div class="setting-group"><label for="freeTextSelect">选择文章</label><select id="freeTextSelect" class="text-select">${optionsHtml}</select></div>`
+                const freeBatchCount = SessionStore.get('freeBatchCount', 60)
+                const randomChecked = SessionStore.get('freeRandom', false) ? 'checked' : ''
+
+                const selectHtml = `
+                    <div class="setting-group">
+                        <label for="freeTextSelect">选择文章</label>
+                        <select id="freeTextSelect" class="text-select">${optionsHtml}</select>
+                    </div>
+                    <div class="setting-group">
+                        <label for="freeBatchCount">每组字数</label>
+                        <input id="freeBatchCount" class="number-input" type="number" min="10" max="1000" value="${freeBatchCount}">
+                    </div>
+                    <label class="checkbox-label" for="freeRandom">
+                        <input id="freeRandom" type="checkbox" ${randomChecked}>
+                        <span>随机抽字</span>
+                    </label>
+                    <button type="button" id="freeNextBtn" class="action-button">开始</button>
+                `
 
                 return `<section class="card practice-card">
                     ${renderSettingsBar({ selectHtml })}
                     ${renderStatsBar('free')}
                     <section class="content-area" id="freeContent">
                         <div class="display-area free-display-area" id="freeArea"></div>
-                        <textarea id="freeUserInput" class="free-input" placeholder="自由输入" rows="3" spellcheck="false"></textarea>
+                        <textarea id="freeUserInput" class="free-input" placeholder="请先点击开始" rows="3" spellcheck="false" disabled></textarea>
                     </section>
                 </section>`
             }
@@ -1070,7 +1093,8 @@
                 UIComponents.initRefs([
                     'rawArea', 'userInput', 'freeUserInput',
                     'speedLabel', 'progressLabel', 'keystrokeSpeedLabel', 'accuracyLabel',
-                    'freeSpeedLabel', 'freeKeystrokeSpeedLabel', 'freeAccuracyLabel',
+                    'freeStatusLabel', 'freeSpeedStateLabel', 'freeSpeedLabel', 'freeKeystrokeSpeedLabel', 'freeAccuracyLabel',
+                    'freeTextSelect', 'freeBatchCount', 'freeRandom', 'freeNextBtn',
                     'oneTimeCount', 'totalCount', 'showHint'
                 ])
 
@@ -1089,12 +1113,12 @@
                 }
 
                 rawArea.style.fontFamily = AppState.get('rawAreaFonts') || 'inherit'
-                userInput.removeAttribute("disabled")
 
                 if (!isFreeType) {
+                    userInput.removeAttribute("disabled")
                     updatePlaceholder()
+                    userInput.focus({ preventScroll: true })
                 }
-                userInput.focus({ preventScroll: true })
 
                 AppState.set('totalIndex', 0)
                 AppState.set('curTab', val)
@@ -1103,8 +1127,7 @@
                 if (isFreeType) {
                     // 使用自由练习模块，从 config.text 获取文章内容
                     const textItems = (config.text || []).map(item => ({ name: item.name, content: item.content }))
-                    const freeText = textItems.length > 0 ? textItems[0].content : ''
-                    FreeModule.init(freeText, textItems)
+                    FreeModule.init(textItems)
                     FreeModule.bindEvents()
                 } else {
                     // 原来的字根练习逻辑
@@ -1215,28 +1238,104 @@
         // 自由练习模块（free tab 类型专用）
         // ============================================
         const FreeModule = (() => {
-            let currentText = '' // 当前练习的文本
-            let inputTimer = null // 防抖定时器
-            const elementIds = { speed: 'freeSpeedLabel', keystroke: 'freeKeystrokeSpeedLabel', accuracy: 'freeAccuracyLabel' }
+            let textItems = []
+            let cachedChars = []
+            let cacheIndex = 0
+            let currentBatch = ''
+            let maxMatchedCount = 0
+            let inputTimer = null
+            let isComposing = false
 
-            // 初始化自由练习
-            const init = (text, textItems = []) => {
-                currentText = text
+            const elementIds = {
+                status: 'freeStatusLabel',
+                speedState: 'freeSpeedStateLabel',
+                speed: 'freeSpeedLabel',
+                keystroke: 'freeKeystrokeSpeedLabel',
+                accuracy: 'freeAccuracyLabel'
+            }
 
-                const freeArea = document.getElementById('freeArea')
-                const userInput = document.getElementById('freeUserInput')
+            const clampBatchCount = (val) => {
+                const num = parseInt(val, 10)
+                if (!Number.isFinite(num)) return 60
+                return Math.min(1000, Math.max(10, num))
+            }
+
+            const getSelectedText = () => {
                 const textSelect = document.getElementById('freeTextSelect')
+                const idx = textSelect ? parseInt(textSelect.value, 10) || 0 : 0
+                return { idx, item: textItems[idx] || textItems[0] || { content: '' } }
+            }
 
-                if (!freeArea || !userInput) {
-                    console.error('FreeModule init failed: freeArea or userInput not found')
-                    return
+            const isRandomMode = () => {
+                const randomInput = document.getElementById('freeRandom')
+                return !!(randomInput && randomInput.checked)
+            }
+
+            const getNextButton = () => document.getElementById('freeNextBtn')
+
+            const getSpeedLevel = (speed) => {
+                if (speed <= 0) return '待开始'
+                if (speed < 30) return '起步'
+                if (speed < 60) return '稳定'
+                if (speed < 90) return '流畅'
+                return '飞快'
+            }
+
+            const updateSpeedState = (isCompleted = false) => {
+                const speedStateLabel = document.getElementById(elementIds.speedState)
+                if (!speedStateLabel) return
+                const speed = MetricsTracker.getStats().typingSpeed
+                const level = getSpeedLevel(speed)
+                speedStateLabel.textContent = isCompleted ? `速度状态：${level}（完成）` : `速度状态：${level}`
+            }
+
+            const updateStatus = (text) => {
+                const statusLabel = document.getElementById(elementIds.status)
+                if (statusLabel) statusLabel.textContent = text
+            }
+
+            const resetMetricsDisplay = () => {
+                const speedLabel = document.getElementById(elementIds.speed)
+                const keystrokeLabel = document.getElementById(elementIds.keystroke)
+                const accuracyLabel = document.getElementById(elementIds.accuracy)
+                if (speedLabel) speedLabel.textContent = '速度：0.00字/分'
+                if (keystrokeLabel) keystrokeLabel.textContent = '击键：0.00次/秒'
+                if (accuracyLabel) accuracyLabel.textContent = '键准：100%'
+                updateSpeedState(false)
+            }
+
+            const updateMetricsDisplay = () => {
+                MetricsTracker.updateDisplay({
+                    speed: elementIds.speed,
+                    keystroke: elementIds.keystroke,
+                    accuracy: elementIds.accuracy
+                })
+                updateSpeedState(false)
+            }
+
+            const setInputEnabled = (enabled) => {
+                const userInput = document.getElementById('freeUserInput')
+                if (!userInput) return
+                if (enabled) {
+                    userInput.removeAttribute('disabled')
+                    userInput.focus({ preventScroll: true })
+                } else {
+                    userInput.setAttribute('disabled', 'true')
                 }
+            }
 
-                // 清空并重新渲染 freeArea
+            const renderPlaceholder = (message = '请选择配置后点击开始') => {
+                const freeArea = document.getElementById('freeArea')
+                if (!freeArea) return
+                freeArea.innerHTML = `<div class="free-placeholder">${message}</div>`
+            }
+
+            const renderBatch = (text) => {
+                const freeArea = document.getElementById('freeArea')
+                if (!freeArea) return
                 freeArea.innerHTML = ''
                 freeArea.style.fontFamily = AppState.get('rawAreaFonts') || 'inherit'
 
-                // 为每个字创建显示区域
                 text.split('').forEach((char, idx) => {
                     const span = document.createElement('span')
                     span.id = `free-char-${idx}`
@@ -1244,92 +1343,184 @@
                     span.dataset.char = char
                     freeArea.appendChild(span)
                 })
+            }
 
-                // 清空输入框
-                userInput.value = ''
-                userInput.focus({ preventScroll: true })
+            const rebuildCache = () => {
+                const { idx, item } = getSelectedText()
+                const content = item?.content || ''
+                const chars = Array.from(content)
 
-                // 重置指标
+                SessionStore.set('freeTextIndex', idx)
+                SessionStore.set('freeRandom', isRandomMode())
+
+                cachedChars = isRandomMode() ? Utils.shuffleArray(chars) : chars
+                cacheIndex = 0
+                currentBatch = ''
+                maxMatchedCount = 0
+
                 MetricsTracker.reset()
+                resetMetricsDisplay()
+                updateStatus(`状态：已就绪（共${cachedChars.length}字）`)
 
-                // 启用输入框
-                userInput.removeAttribute('disabled')
+                const userInput = document.getElementById('freeUserInput')
+                if (userInput) {
+                    userInput.value = ''
+                    userInput.placeholder = '请先点击开始'
+                }
+                setInputEnabled(false)
+                renderPlaceholder(cachedChars.length > 0 ? '点击开始进入本组练习' : '当前文章为空，请选择其他文章')
 
-                // 重置指标显示
-                MetricsTracker.updateDisplay({ speed: 'freeSpeedLabel', keystroke: 'freeKeystrokeSpeedLabel', accuracy: 'freeAccuracyLabel' })
-                const speedLabel = document.getElementById('freeSpeedLabel')
-                if (speedLabel) speedLabel.textContent = ""
+                const nextBtn = getNextButton()
+                if (nextBtn) {
+                    nextBtn.textContent = '开始'
+                    nextBtn.removeAttribute('disabled')
+                }
+            }
 
-                // 绑定下拉框选择事件
-                if (textSelect && textItems.length > 0) {
-                    textSelect.onchange = (e) => {
-                        const idx = parseInt(e.target.value)
-                        const selectedText = textItems[idx]
-                        if (selectedText) {
-                            // 重置并加载新内容
-                            init(selectedText.content, textItems)
-                            FreeModule.bindEvents()
-                        }
+            const loadNextBatch = () => {
+                if (cachedChars.length === 0) {
+                    renderPlaceholder('当前文章为空，请选择其他文章')
+                    return
+                }
+
+                if (cacheIndex >= cachedChars.length) {
+                    // 重新开始时重新生成缓存，随机模式会得到新的乱序
+                    rebuildCache()
+                }
+
+                if (cacheIndex >= cachedChars.length) return
+
+                const countInput = document.getElementById('freeBatchCount')
+                const batchCount = clampBatchCount(countInput ? countInput.value : 60)
+                if (countInput) {
+                    countInput.value = batchCount
+                    SessionStore.set('freeBatchCount', batchCount)
+                }
+
+                const start = cacheIndex
+                const end = Math.min(start + batchCount, cachedChars.length)
+                currentBatch = cachedChars.slice(start, end).join('')
+                cacheIndex = end
+                maxMatchedCount = 0
+
+                MetricsTracker.reset()
+                resetMetricsDisplay()
+                updateStatus(`状态：练习中（${start + 1}-${end}/${cachedChars.length}）`)
+
+                const userInput = document.getElementById('freeUserInput')
+                if (userInput) {
+                    userInput.value = ''
+                    userInput.placeholder = '自由输入'
+                }
+
+                renderBatch(currentBatch)
+                setInputEnabled(true)
+
+                const nextBtn = getNextButton()
+                if (nextBtn) {
+                    nextBtn.textContent = '下一组'
+                    nextBtn.setAttribute('disabled', 'true')
+                }
+            }
+
+            const finishCurrentBatch = () => {
+                MetricsTracker.stop()
+                updateMetricsDisplay()
+                updateSpeedState(true)
+
+                updateStatus('状态：本组完成')
+                setInputEnabled(false)
+
+                const nextBtn = getNextButton()
+                if (nextBtn) {
+                    nextBtn.removeAttribute('disabled')
+                    nextBtn.textContent = cacheIndex >= cachedChars.length ? '重新开始' : '下一组'
+                }
+
+                const userInput = document.getElementById('freeUserInput')
+                if (userInput) {
+                    userInput.placeholder = '点击下一组继续练习'
+                }
+            }
+
+            const refreshDisplayByInput = (val) => {
+                if (!currentBatch) return
+
+                const inputLen = Math.min(val.length, currentBatch.length)
+                let firstMismatchIndex = -1
+
+                for (let i = 0; i < inputLen; i++) {
+                    if (val[i] !== currentBatch[i]) {
+                        firstMismatchIndex = i
+                        break
                     }
                 }
+
+                if (firstMismatchIndex === -1 && val.length > currentBatch.length) {
+                    firstMismatchIndex = currentBatch.length
+                }
+
+                const matchedCount = firstMismatchIndex === -1 ? inputLen : firstMismatchIndex
+
+                if (matchedCount > maxMatchedCount) {
+                    MetricsTracker.addWordCount(matchedCount - maxMatchedCount)
+                    maxMatchedCount = matchedCount
+                }
+
+                if (val.length > 0) {
+                    MetricsTracker.start(updateMetricsDisplay)
+                }
+
+                for (let i = 0; i < currentBatch.length; i++) {
+                    const span = document.getElementById(`free-char-${i}`)
+                    if (!span) continue
+
+                    span.style.background = 'transparent'
+                    span.classList.remove('error')
+
+                    if (i < matchedCount) {
+                        span.style.color = 'var(--text-primary)'
+                    } else if (i < val.length) {
+                        span.style.color = 'var(--error)'
+                        span.style.background = 'var(--error-subtle)'
+                        span.classList.add('error')
+                    } else {
+                        span.style.color = 'var(--text-tertiary)'
+                    }
+                }
+
+                if (firstMismatchIndex === -1 && val.length === currentBatch.length) {
+                    finishCurrentBatch()
+                }
+            }
+
+            // 初始化自由练习
+            const init = (items = []) => {
+                textItems = items
+
+                const freeArea = document.getElementById('freeArea')
+                const userInput = document.getElementById('freeUserInput')
+                if (!freeArea || !userInput) {
+                    console.error('FreeModule init failed: freeArea or userInput not found')
+                    return
+                }
+
+                freeArea.style.fontFamily = AppState.get('rawAreaFonts') || 'inherit'
+                rebuildCache()
             }
 
             // 处理用户输入
             const handleInput = () => {
                 const userInput = document.getElementById('freeUserInput')
-                if (!userInput) return
-                const val = userInput.value
+                if (!userInput || !currentBatch) return
 
-                // 清除之前的防抖定时器
                 if (inputTimer) {
                     clearTimeout(inputTimer)
                 }
 
+                const val = userInput.value
                 inputTimer = setTimeout(() => {
-                    // 只对比用户输入的长度的内容
-                    const inputLen = Math.min(val.length, currentText.length)
-
-                    // 找到用户输入范围内第一个不匹配的位置
-                    let firstMismatchIndex = -1
-                    for (let i = 0; i < inputLen; i++) {
-                        if (val[i] !== currentText[i]) {
-                            firstMismatchIndex = i
-                            break
-                        }
-                    }
-
-                    // 更新显示状态
-                    for (let i = 0; i < currentText.length; i++) {
-                        const span = document.getElementById(`free-char-${i}`)
-                        if (!span) continue
-
-                        const expectedChar = currentText[i]
-                        span.textContent = expectedChar
-                        span.style.background = 'transparent'
-                        span.classList.remove('error')
-
-                        if (i < val.length) {
-                            // 在用户输入范围内的文字
-                            if (firstMismatchIndex !== -1 && i >= firstMismatchIndex) {
-                                // 第一个不匹配位置变红
-                                span.style.color = 'var(--error)'
-                                span.style.background = 'var(--error-subtle)'
-                                span.classList.add('error')
-                            } else {
-                                // 匹配的文字保持正常
-                                span.style.color = 'var(--text-primary)'
-                            }
-                        } else {
-                            // 超出用户输入长度的文字，恢复原始显示
-                            span.style.color = 'var(--text-tertiary)'
-                        }
-                    }
-
-                    // 启动指标计时器
-                    if (val.length > 0 && MetricsTracker.getStats().wordCount === 0) {
-                        MetricsTracker.start(() => MetricsTracker.updateDisplay(elementIds))
-                    }
-
+                    refreshDisplayByInput(val)
                     inputTimer = null
                 }, 30)
             }
@@ -1337,27 +1528,44 @@
             // 绑定事件
             const bindEvents = () => {
                 const userInput = document.getElementById('freeUserInput')
-                if (userInput) {
-                    // 输入法组合期间不处理对比
-                    let isComposing = false
-                    userInput.addEventListener('compositionstart', () => {
-                        isComposing = true
-                    })
-                    userInput.addEventListener('compositionend', (e) => {
-                        isComposing = false
-                        // 组合结束后立即处理输入
-                        handleInput()
-                    })
+                const textSelect = document.getElementById('freeTextSelect')
+                const randomInput = document.getElementById('freeRandom')
+                const batchCountInput = document.getElementById('freeBatchCount')
+                const nextBtn = getNextButton()
 
+                if (textSelect) {
+                    textSelect.onchange = () => rebuildCache()
+                }
+
+                if (randomInput) {
+                    randomInput.onchange = () => rebuildCache()
+                }
+
+                if (batchCountInput) {
+                    batchCountInput.onchange = (e) => {
+                        const count = clampBatchCount(e.target.value)
+                        e.target.value = count
+                        SessionStore.set('freeBatchCount', count)
+                    }
+                }
+
+                if (nextBtn) {
+                    nextBtn.onclick = () => loadNextBatch()
+                }
+
+                if (userInput) {
+                    userInput.oncompositionstart = () => {
+                        isComposing = true
+                    }
+                    userInput.oncompositionend = () => {
+                        isComposing = false
+                        handleInput()
+                    }
                     userInput.oninput = () => {
-                        // 输入法组合期间不处理
                         if (isComposing) return
                         handleInput()
                     }
                 }
-
-                // 使用共享的键盘事件处理器
-                KeyboardHandler.bind()
             }
 
             // 清理资源
@@ -1366,8 +1574,14 @@
                     clearTimeout(inputTimer)
                     inputTimer = null
                 }
+
                 MetricsTracker.stop()
-                currentText = ''
+                textItems = []
+                cachedChars = []
+                cacheIndex = 0
+                currentBatch = ''
+                maxMatchedCount = 0
+                isComposing = false
             }
 
             return { init, bindEvents, cleanup, handleInput }
@@ -1600,7 +1814,25 @@
             }
             .text-select { padding: 8px 12px; }
             .number-input { width: 82px; padding: 8px 10px; text-align: center; font-weight: 600; }
-            .text-select:focus, .number-input:focus, #userInput:focus, .free-input:focus {
+            .action-button {
+                border: none;
+                border-radius: 999px;
+                padding: 8px 16px;
+                background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+                color: #fff;
+                font-weight: 650;
+                cursor: pointer;
+                transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+                box-shadow: 0 8px 16px rgba(79, 70, 229, 0.25);
+            }
+            .action-button:hover { transform: translateY(-1px); }
+            .action-button:disabled {
+                cursor: not-allowed;
+                opacity: 0.55;
+                box-shadow: none;
+                transform: none;
+            }
+            .text-select:focus, .number-input:focus, #userInput:focus, .free-input:focus, .action-button:focus-visible {
                 border-color: var(--primary);
                 box-shadow: var(--focus-ring);
                 outline: none;
@@ -1664,6 +1896,14 @@
             }
             .free-display-area span { margin: 0; padding: 0; display: inline; color: var(--text-tertiary); }
             .free-display-area span.error { color: var(--error); background: var(--error-subtle); border-radius: 4px; }
+            .free-placeholder {
+                width: 100%;
+                text-align: center;
+                color: var(--text-sub);
+                font-size: 1rem;
+                letter-spacing: 0;
+                padding: 40px 12px;
+            }
 
             #userInput {
                 width: min(420px, 100%);
@@ -1707,6 +1947,10 @@
                 width: 100%;
                 border-radius: 12px;
                 background: rgba(255, 255, 255, 0.9);
+            }
+            #freeUserInput:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
             }
 
             .help-block {
