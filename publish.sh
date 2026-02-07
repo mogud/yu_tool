@@ -124,12 +124,12 @@ if [ "$DO_ZIP" = true ]; then
             filename=$(basename "$f" .zip)
 
             # 解析: 输入法练习工具_{version}_{date}_{build}.zip
-            version=$(echo "$filename" | sed -E 's/输入法练习工具_([0-9]+\.[0-9]+\.[0-9]+)_[0-9]{8}.*/\1/')
-            date_part=$(echo "$filename" | sed -E 's/输入法练习工具_[0-9]+\.[0-9]+\.[0-9]+_([0-9]{8}).*/\1/')
+            version=$(echo "$filename" | sed -E 's/输入法练习工具_([^_]+)_[0-9]{8}.*/\1/')
+            date_part=$(echo "$filename" | sed -E 's/输入法练习工具_[^_]+_([0-9]{8}).*/\1/')
 
             # 提取 build 号（如果有）
-            if echo "$filename" | grep -qE '输入法练习工具_[0-9]+\.[0-9]+\.[0-9]+_[0-9]{8}_[0-9]+$'; then
-                build=$(echo "$filename" | sed -E 's/输入法练习工具_[0-9]+\.[0-9]+\.[0-9]+_[0-9]{8}_([0-9]+)/\1/')
+            if echo "$filename" | grep -qE '输入法练习工具_[^_]+_[0-9]{8}_[0-9]+$'; then
+                build=$(echo "$filename" | sed -E 's/输入法练习工具_[^_]+_[0-9]{8}_([0-9]+)/\1/')
             else
                 build="0"
             fi
