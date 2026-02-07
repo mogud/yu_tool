@@ -455,7 +455,7 @@
                     ${renderStatsBar('free')}
                     <section class="content-area" id="freeContent">
                         <div class="display-area free-display-area" id="freeArea"></div>
-                        <textarea id="freeUserInput" class="free-input" placeholder="自由输入" rows="3" spellcheck="false" disabled></textarea>
+                        <textarea id="freeUserInput" class="free-input" placeholder="在这里输入" rows="3" spellcheck="false" disabled></textarea>
                     </section>
                 </section>`
             }
@@ -983,7 +983,7 @@
                                                 startPractice(AppState.get('curTab'))
                                             }
                                         })
-                        
+
                                         // 提示复选框
                                         const hintCheckbox = document.getElementById('showHint')
                                         if (hintCheckbox) {
@@ -992,13 +992,13 @@
                                                 updatePlaceholder()
                                             }
                                         }
-                        
+
                                         // 数字输入框
                                         const oneTimeCountInput = document.getElementById('oneTimeCount')
                                         if (oneTimeCountInput) {
                                             oneTimeCountInput.onchange = (e) => SessionStore.set('oneTimeCount', e.target.value)
                                         }
-                        
+
                                         const totalCountInput = document.getElementById('totalCount')
                                         if (totalCountInput) {
                                             totalCountInput.onchange = (e) => SessionStore.set('totalCount', e.target.value)
@@ -1279,11 +1279,10 @@
             let cacheIndex = 0
             let currentBatch = ''
             let isComposing = false
-            let completedGroups = 0
+            let currentGroup = 0
             let totalGroups = 0
             let countedCorrectFlags = []
             let isBatchLocked = false
-            let currentGroupCompleted = false
 
             const elementIds = {
                 progress: 'freeProgressLabel',
@@ -1319,14 +1318,14 @@
             const updateProgress = () => {
                 const progressLabel = document.getElementById(elementIds.progress)
                 if (progressLabel) {
-                    progressLabel.textContent = `进度：${completedGroups}/${totalGroups}组`
+                    progressLabel.textContent = `进度：${currentGroup}/${totalGroups}组`
                 }
             }
 
             const setTotalGroupsByBatch = () => {
                 const batchCount = getBatchCount()
                 totalGroups = cachedChars.length > 0 ? Math.ceil(cachedChars.length / batchCount) : 0
-                if (completedGroups > totalGroups) completedGroups = totalGroups
+                if (currentGroup > totalGroups) currentGroup = totalGroups
                 updateProgress()
             }
 
@@ -1399,12 +1398,6 @@
                     return
                 }
 
-                if (currentGroupCompleted && completedGroups > 0) {
-                    completedGroups--
-                    currentGroupCompleted = false
-                    updateProgress()
-                }
-
                 isBatchLocked = false
                 countedCorrectFlags = Array.from({ length: currentBatch.length }, () => false)
 
@@ -1414,7 +1407,7 @@
                 const userInput = document.getElementById('freeUserInput')
                 if (userInput) {
                     userInput.value = ''
-                    userInput.placeholder = '自由输入'
+                    userInput.placeholder = '在这里输入'
                     userInput.removeAttribute('disabled')
                 }
 
@@ -1423,10 +1416,10 @@
 
                 const nextBtn = getNextButton()
                 if (nextBtn) {
-                    nextBtn.textContent = '下一组'
+                    nextBtn.textContent = cacheIndex >= cachedChars.length ? '重新开始' : '下一组'
                 }
 
-                freeLog('restartCurrentBatch', { batchLength: currentBatch.length, completedGroups, totalGroups })
+                freeLog('restartCurrentBatch', { batchLength: currentBatch.length, currentGroup, totalGroups })
             }
 
             const rebuildCache = () => {
@@ -1445,8 +1438,7 @@
                 currentBatch = ''
                 countedCorrectFlags = []
                 isBatchLocked = false
-                currentGroupCompleted = false
-                completedGroups = 0
+                currentGroup = 0
 
                 setTotalGroupsByBatch()
                 MetricsTracker.reset()
@@ -1455,7 +1447,7 @@
                 const userInput = document.getElementById('freeUserInput')
                 if (userInput) {
                     userInput.value = ''
-                    userInput.placeholder = '自由输入'
+                    userInput.placeholder = '在这里输入'
                 }
 
                 if (cachedChars.length === 0) {
@@ -1488,17 +1480,8 @@
                 }
 
                 if (cacheIndex >= cachedChars.length) {
-                    if (completedGroups >= totalGroups && totalGroups > 0) {
-                        freeLog('loadNextBatch:rebuild-required')
-                        rebuildCache()
-                    } else {
-                        freeLog('loadNextBatch:end-reached-before-complete', {
-                            completedGroups,
-                            totalGroups,
-                            cacheIndex,
-                            cachedLength: cachedChars.length
-                        })
-                    }
+                    freeLog('loadNextBatch:rebuild-required')
+                    rebuildCache()
                     return
                 }
 
@@ -1511,7 +1494,8 @@
                 cacheIndex = end
                 countedCorrectFlags = Array.from({ length: currentBatch.length }, () => false)
                 isBatchLocked = false
-                currentGroupCompleted = false
+                currentGroup = totalGroups > 0 ? Math.floor(start / batchCount) + 1 : 0
+                updateProgress()
 
                 freeLog('loadNextBatch:ready', { start, end, batchLength: currentBatch.length, cacheIndex })
 
@@ -1521,7 +1505,7 @@
                 const userInput = document.getElementById('freeUserInput')
                 if (userInput) {
                     userInput.value = ''
-                    userInput.placeholder = '自由输入'
+                    userInput.placeholder = '在这里输入'
                 }
 
                 renderBatch(currentBatch)
@@ -1529,7 +1513,7 @@
 
                 const nextBtn = getNextButton()
                 if (nextBtn) {
-                    nextBtn.textContent = '下一组'
+                    nextBtn.textContent = cacheIndex >= cachedChars.length ? '重新开始' : '下一组'
                 }
 
                 const refreshBtn = getRefreshButton()
@@ -1541,16 +1525,13 @@
             const finishCurrentBatch = () => {
                 if (isBatchLocked) return
                 isBatchLocked = true
-                currentGroupCompleted = true
 
                 MetricsTracker.stop()
                 updateMetricsDisplay()
 
-                completedGroups = Math.min(totalGroups, completedGroups + 1)
-                updateProgress()
                 setInputEnabled(false)
 
-                freeLog('finishCurrentBatch', { completedGroups, totalGroups, cacheIndex, cachedLength: cachedChars.length })
+                freeLog('finishCurrentBatch', { currentGroup, totalGroups, cacheIndex, cachedLength: cachedChars.length })
 
                 const nextBtn = getNextButton()
                 if (nextBtn) {
@@ -1679,15 +1660,6 @@
                 }
 
                 if (userInput) {
-                    userInput.oncompositionstart = () => {
-                        isComposing = true
-                        freeLog('event:compositionstart', { value: userInput.value })
-                    }
-                    userInput.oncompositionend = () => {
-                        isComposing = false
-                        freeLog('event:compositionend', { value: userInput.value })
-                        handleCommittedInput()
-                    }
                     userInput.oninput = (e) => {
                         const inputType = e?.inputType || ''
                         const eventComposing = !!e?.isComposing
@@ -1729,11 +1701,10 @@
                 cacheIndex = 0
                 currentBatch = ''
                 isComposing = false
-                completedGroups = 0
+                currentGroup = 0
                 totalGroups = 0
                 countedCorrectFlags = []
                 isBatchLocked = false
-                currentGroupCompleted = false
             }
 
             return { init, bindEvents, cleanup, handleInput }
@@ -1965,6 +1936,7 @@
                 transition: border-color 0.16s ease, box-shadow 0.16s ease;
             }
             .text-select {
+                min-width: 240px;
                 padding: 8px 34px 8px 12px;
                 appearance: none;
                 -webkit-appearance: none;
