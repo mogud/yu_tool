@@ -1,6 +1,6 @@
 name = '卿云字根简码练习'
 version = '无'
-config_version = "2026.2.7-2"
+config_version = "2026.2.7-3"
 help = ['''
 <div class="card">
     <div class="help-block">
@@ -48,7 +48,7 @@ command = 'content_reload'
 
 [[key_bindings]]
 key = 'alt+n'
-command = 'content_reload'
+command = 'content_next'
 
 [[items_meta]]
 category = ['roots']
