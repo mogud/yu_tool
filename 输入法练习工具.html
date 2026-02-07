@@ -867,7 +867,11 @@
             const setFreeNavMode = (isFreeType) => {
                 const nav = document.querySelector('.nav-tabs')
                 if (!nav) return
-                nav.classList.toggle('is-free-mode', Boolean(isFreeType))
+                const isFree = Boolean(isFreeType)
+                nav.classList.toggle('is-free-mode', isFree)
+                if (isFree) {
+                    document.querySelectorAll('.group-tab').forEach(tab => tab.classList.remove('active'))
+                }
             }
 
             // 切换输入区域
@@ -1487,15 +1491,30 @@
                 display: flex;
                 flex-wrap: wrap;
                 align-items: center;
+                justify-content: center;
                 gap: 8px;
                 padding-bottom: 10px;
                 border-bottom: 1px solid var(--border);
             }
-            .tab-container { display: flex; flex-wrap: wrap; gap: 8px; }
-            .nav-tabs.is-free-mode .group-nav { padding-bottom: 0; border-bottom: none; }
+            .tab-container {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 8px;
+            }
+            .nav-tabs.is-free-mode .group-nav {
+                padding-bottom: 0;
+                border-bottom: none;
+                justify-content: center;
+            }
             .nav-tabs.is-free-mode .tab-container { display: none; }
+            .nav-tabs.is-free-mode .group-tab { opacity: 0.72; }
+            .nav-tabs.is-free-mode .free-tab { opacity: 1; }
 
             .group-tab, .tab {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
                 border: none;
                 border-radius: 999px;
                 padding: 8px 16px;
@@ -1520,11 +1539,19 @@
                 box-shadow: var(--focus-ring);
             }
             .free-tab {
-                margin-left: auto;
-                border: 1px solid rgba(79, 70, 229, 0.35);
-                color: var(--primary);
-                background: #fff;
+                color: var(--primary-strong);
+                background: rgba(79, 70, 229, 0.08);
             }
+            .free-tab::before {
+                content: "";
+                width: 6px;
+                height: 6px;
+                margin-right: 8px;
+                border-radius: 999px;
+                background: currentColor;
+                opacity: 0.65;
+            }
+            .free-tab.active::before { opacity: 1; }
 
             .card {
                 padding: 22px;
